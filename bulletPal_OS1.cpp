@@ -3482,17 +3482,28 @@ void loop()
   }
   else
   {
-    // unsigned long currentMillis = millis();
-    // // Check if it's time to print the heartbeat status
-    // if (currentMillis - lastHeartbeatTime >= heartbeatInterval)
-    // {
-    //  Serial.println("Failed to receive heartbeat request");
-    // // Reset lastHeartbeatTime to avoid immediate retry
-    // lastHeartbeatTime = currentMillis;
-    // dev_mode = false;
-    // anim_idle();
-    //};
+    unsigned long currentMillis = millis();
+    unsigned long interval = 10000;
+    unsigned long eq = (currentMillis - lastHeartbeatTime);
+    // Check if it's time to print the heartbeat status
+    if (eq > interval)
+    {
+      if (eq < 400000000){
+      Serial.println("Failed to receive heartbeat request");
+      Serial.println(currentMillis);
+      Serial.println(lastHeartbeatTime);
+      Serial.println(heartbeatInterval);
+      Serial.print((lastHeartbeatTime - currentMillis));
+      Serial.print(" : ");
+      Serial.println(interval);
+      Serial.println((currentMillis - lastHeartbeatTime) > interval);
+      // Reset lastHeartbeatTime to avoid immediate retry
+      lastHeartbeatTime = currentMillis;
+      dev_mode = false;
+      anim_idle();
+      }
+    };
     // Other non-blocking tasks can be performed here
-    // Keep cycling as dev mode is fully request based. no autonomy performed.
+    //  Keep cycling as dev mode is fully request based. no autonomy performed.
   }
 }
