@@ -7,6 +7,7 @@
 #include <Preferences.h>
 #include <ESPAsyncWebServer.h>
 #include <esp_random.h>
+#include <Base64.h>
 
 // 'default_sad_2_5', 128x64px
 const unsigned char default_sad_2_5[] PROGMEM = {
@@ -3486,30 +3487,38 @@ server.on("setrawemotion", HTTP_POST, [](AsyncWebServerRequest *request)
   }; });
 
 server.on("/displayImage", HTTP_POST, [](AsyncWebServerRequest *request)
-          {
-  // Read the body of the request
+{
+  // Buffer to store the incoming request body
   uint8_t buffer[1024];
   size_t len = request->contentLength();
   size_t bytesRead = request->readBytes(buffer, len);
 
-  // Parse JSON
+  // Parse the JSON from the buffer
   StaticJsonDocument<1024> doc;
   DeserializationError error = deserializeJson(doc, buffer, bytesRead);
   if (error) {
     Serial.print("deserializeJson() failed: ");
     Serial.println(error.c_str());
-    request->send(400, "text/plain", "deserializeJson() failed [!!MAKE SURE THERE IS A JSON PROPERTY OF 'image' with a byte array image!!]: " + error.c_str());
+    request->send(400, "text/plain", "deserializeJson() failed: " + String(error.c_str()));
     return;
   }
 
-  // Get the byte array from JSON
-  const char* imageBytes = doc["image"];
-  
-  // Display the image
+  // Extract the Base64 encoded image from the JSON
+  const char* base64Image = doc["image"];
+
+  // Decode the Base64 string into a byte array
+  int imageSize = Base64.decodedLength(base64Image); // Calculate the size of the decoded data
+  uint8_t decodedImage[imageSize]; // Create a byte array to hold the decoded data
+  Base64.decode(decodedImage, base64Image, strlen(base64Image)); // Decode the Base64 string
+
+  // Display the decoded image on the screen
   display.clearDisplay();
-  display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, (uint8_t *)imageBytes, 128, 64, SSD1306_WHITE);
+  display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, decodedImage, 128, 64, SSD1306_WHITE);
   display.display();
-  request->send(200, "text/plain", "Image displayed successfully."); });
+
+  // Send a response back to the client
+  request->send(200, "text/plain", "Image displayed successfully.");
+});
 
 server.on("/listemotion", HTTP_GET, [](AsyncWebServerRequest *request)
           { request->send(200, "text/plain", "All secondary emotions will reset back to the primary emotion once its animation has ended if using the /setemotion endpoint. use the /setrawemotion to use just the frame. emotions: [ idle, idle_blink, sleep, sleep_zzz, dead, dead_drool, happy_1, happy_1_blink, happy_1_wink, happy_2, happy_2_blink, angry, angry_symbol, angry_shake, sad, sad_tear, sad_hungry ] | rawemotions: []"); });
