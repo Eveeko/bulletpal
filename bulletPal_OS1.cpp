@@ -7,7 +7,8 @@
 #include <Preferences.h>
 #include <ESPAsyncWebServer.h>
 #include <esp_random.h>
-#include <Base64.h>
+#include <ArduinoJson.h>
+#include <Arduino.h>
 
 // 'default_sad_2_5', 128x64px
 const unsigned char default_sad_2_5[] PROGMEM = {
@@ -2059,7 +2060,7 @@ const unsigned char default_idle[] PROGMEM = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -2608,10 +2609,37 @@ bool loop_state = false;       // Determines the current mode for the main loop.
 bool device_connected = false; // Determines if a device is connected for the setup mode.
 int last_emotion = 5;
 bool dev_mode = false; // Used to change between automatic emotions and explicit emotions.
+int RAC = 0;           // Random action index.
+unsigned long previousMillis = 0;
+const long interval = 1000; // Delay interval in milliseconds
+unsigned long lastHeartbeatTime = 0;
+unsigned long heartbeatInterval = 15000; // 10 seconds in milliseconds
 
 AsyncWebServer server(80);
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 Preferences preferences;
+
+// delcaring functions prior
+
+void anim_idle();
+void anim_sleep();
+void anim_dead();
+void anim_happy_1();
+void anim_happy_2();
+void anim_angry();
+void anim_sad();
+void anim_idle_blink();
+void anim_sleep_zzz();
+void anim_dead_drool();
+void anim_happy_1_wink();
+void anim_happy_1_blink();
+void anim_happy_2_blink();
+void anim_angry_shake();
+void anim_angry_symbol();
+void anim_sad_hungry();
+void anim_sad_tear();
+
+//
 
 void WiFiEvent(WiFiEvent_t event)
 {
@@ -2650,221 +2678,6 @@ void WiFiEvent(WiFiEvent_t event)
   default:
     break;
   };
-}
-
-void setup()
-{
-  Serial.begin(9600);
-  delay(2000);
-  Serial.println(F("Starting!"));
-  preferences.begin("bullet-pal", false);
-  if (!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS))
-  {
-    Serial.println(F("SSD1306 allocation failed"));
-    for (;;)
-      ; // Don't proceed, loop forever
-  }
-  Serial.println(F("Initialized Display!"));
-  display.clearDisplay();
-  display.setRotation(2);
-  display.drawBitmap(
-      (display.width() - 128) / 2,
-      (display.height() - 64) / 2,
-      indicator_loading, 128, 64, 1);
-  display.display();
-  // Find out if there is a saved AP stored.
-  String saved_ssid = preferences.getString("ssid", "");
-  if (saved_ssid == "")
-  {
-    // No SSID found. Start in AP mode so a SSID can be set.
-    // Create AP point.
-    Serial.println("\n[*] Creating AP");
-    WiFi.mode(WIFI_AP);
-    WiFi.softAPConfig(local_ip, gateway, subnet);
-    WiFi.softAP(ssid, NULL);
-    WiFi.onEvent(WiFiEvent);
-    Serial.print("[+] AP Created with IP Gateway ");
-    Serial.println(WiFi.softAPIP());
-    // Display the indicator to use your phone to connect to the AP.
-    delay(2000);
-    display.clearDisplay();
-    display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, indicator_wifi, 128, 64, SSD1306_WHITE);
-    display.display();
-    Serial.println("\n[*] Displayed indicator_WiFi");
-    delay(1000);
-  }
-  else
-  {
-    // We found a SSID saved. Proceed foward.
-    String saved_password = preferences.getString("password", "");
-    const char *ssid_ch = saved_ssid.c_str();
-    const char *pass_ch = saved_password.c_str();
-
-    Serial.println("\n[*] Connecting to Wifi network: " + saved_ssid);
-    if (connectToWiFi(ssid_ch, pass_ch))
-    {
-      // If it connects successfully we can continue.
-      Serial.println("SSID found and connected, starting main loop.");
-      loop_state = true;
-      display.clearDisplay();
-      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_idle, 128, 64, SSD1306_WHITE);
-      display.display();
-      delay(7000);
-    }
-    else
-    {
-      // Unsuccessful connection with stored data. Reset data and reboot.
-      preferences.remove("ssid");
-      preferences.remove("password");
-      display.clearDisplay();
-      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, indicator_wifi_fail, 128, 64, SSD1306_WHITE);
-      display.display();
-      delay(5000);
-      display.clearDisplay();
-      display.setCursor(0, 0);
-      display.setTextColor(SSD1306_WHITE);
-      display.setTextSize(4);
-      display.println("Unable to Connect-");
-      display.setTextSize(2);
-      display.println("Failed after 30 attempts...");
-      display.println("Reverting to setup mode...");
-      display.display();
-      preferences.end();
-      delay(2000);
-      ESP.restart();
-    }
-  }
-
-  // Declare webserver handles.
-  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request)
-            {
-    if (loop_state == false) {
-      // Respond to GET request with a form for SSID and password
-      String html ="<head> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"> <style> ";
-      html +="font-face { font-family: 'glass_tty_vt220medium'; src: url(data:application/font-woff2;charset=utf-8;base64,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) format('woff2'); font-weight: normal; font-style: normal; } body { font-family: 'glass_tty_vt220medium'; height: 100%; margin: 0; display: flex; justify-content: center; align-items: center; background-color: #110e00; } .logo { position: absolute; top: 8%; width: 35vw; left: 35vw; height: auto; } .input1 { position: absolute; top: 0%; left: 30%; color: #ffcc00; background-color: #362c00; outline: none; border: #5c4b00 1px; font-weight: bold; font-family: sans-serif; } .input2 { position: absolute; top: 70%; left: 49%; color: #ffcc00; background-color: #362c00; font-weight: bold; font-family: sans-serif; outline: none; border: #5c4b00 1px; } .submitBtn { position: absolute; top: 140%; left: 30%; background-color: #ffcc00; color: #362c00; font-family: monospace; width: 120px; height: 25px; font-weight: bolder; border: #362c00; cursor: pointer; } .submitBtnOverride:hover { background-color: #5c4b00; color: #ffcc00; } ";
-      html += myVariable;
-      html +="media (min-width: 920px) { .logo { position: absolute; top: 6%; width: 15%; height: auto; left: 44%; display: block; margin-left: auto; margin-right: auto; } .div1 { position: relative; top: -12vh; left: 10%; } } .line-filter { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: repeating-linear-gradient(transparent, transparent 2px, rgba(11, 9, 0, 0.3) 3px, rgba(11, 9, 0, 0.3) 4px); pointer-events: none } .scanlines { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-image: linear-gradient(to bottom, rgba(255, 204, 0, 0.1) 1px, transparent 2px); z-index: 1; pointer-events: none; animation: scan 27s linear infinite; } ";
-      html += myVariable;
-      html += "keyframes scan { 0% { background-position: 0 -100vh; } 100% { background-position: 0 100vh; } } .loginH1 { color: #ffcc00; } .loginH4 { color: #ffcc00; } .div1 { position: relative; top: 3vw; left: 10%; } .div2 { position: relative; top: 10%; left: -12%; } .popupdiv { background-color: #ffcc00; color: #362c00; font-family: monospace; font-size: 10px; width: 100%; height: 75px; position: absolute; bottom: 0%; left: 0%; } </style> </head> <body> <div> <div class=\"scanlines\"></div> <img class=\"logo\" src=\"data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4NCjwhLS0gR2VuZXJhdG9yOiBBZG9iZSBJbGx1c3RyYXRvciAyOC4wLjAsIFNWRyBFeHBvcnQgUGx1Zy1JbiAuIFNWRyBWZXJzaW9uOiA2LjAwIEJ1aWxkIDApICAtLT4NCjxzdmcgdmVyc2lvbj0iMS4xIiBpZD0iTGF5ZXJfMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayIgeD0iMHB4IiB5PSIwcHgiDQoJIHZpZXdCb3g9IjAgMCAzNCA0NyIgc3R5bGU9ImVuYWJsZS1iYWNrZ3JvdW5kOm5ldyAwIDAgMzQgNDc7IiB4bWw6c3BhY2U9InByZXNlcnZlIj4NCjxzdHlsZSB0eXBlPSJ0ZXh0L2NzcyI+DQoJLnN0MHtmaWxsOiNGRkNDMDA7fQ0KPC9zdHlsZT4NCjxwYXRoIGNsYXNzPSJzdDAiIGQ9Ik0xMywyYzIuNiwwLDUuMywwLDgsMGMwLDAuNywwLDEuMywwLDJjMC43LDAsMS4zLDAsMiwwYzAsMC43LDAsMS4zLDAsMmMwLjcsMCwxLjMsMCwyLDBjMCwwLjcsMCwxLjMsMCwyDQoJYzAuNywwLDEuMywwLDIsMGMwLDEsMCwyLDAsM2MwLjcsMCwxLjMsMCwyLDBjMCwyLDAsNCwwLDZjLTIsMC00LDAtNiwwYzAtMC43LDAtMS4zLDAtMmMwLjcsMCwxLjMsMCwyLDBjMC0xLjMsMC0yLjYsMC00DQoJYy0wLjcsMC0xLjMsMC0yLDBjMC0xLDAtMiwwLTNjLTAuNywwLTEuMywwLTIsMGMwLTAuNywwLTEuMywwLTJjLTEuMywwLTIuNiwwLTQsMGMwLDEuMywwLDIuNiwwLDRjMS4zLDAuMywyLjYtMC4xLDMuOSwwLjINCgljMCwxLjMsMC4xLDMuNCwwLjEsNC44Yy0wLjcsMC0xLjMsMC0yLDBjMCwwLjcsMCwxLjMsMCwyYy00LjYsMC05LjIsMC0xNCwwYzAtMiwwLTQsMC02YzAuNywwLDEuMywwLDIsMGMwLTEsMC0yLDAtMw0KCWMwLjcsMCwxLjMsMCwyLDBjMC0wLjcsMC0xLjMsMC0yYzAuNywwLDEuMywwLDIsMGMwLTAuNywwLTEuMywwLTJjMC43LDAsMS4zLDAsMiwwQzEzLDMuMywxMywyLjcsMTMsMnoiLz4NCjxwYXRoIGNsYXNzPSJzdDAiIGQ9Ik01LDE5YzcuOSwwLDE1LjgsMCwyNCwwYzAsNS42LDAsMTEuMiwwLDE3Yy03LjksMC0xNS44LDAtMjQsMEM1LDMwLjQsNSwyNC44LDUsMTl6IE03LDI0YzAsMy4zLDAsNi42LDAsMTANCgljNi42LDAsMTMuMiwwLDIwLDBjMC0zLjMsMC02LjYsMC0xMEMyMC40LDI0LDEzLjgsMjQsNywyNHoiLz4NCjxwYXRoIGNsYXNzPSJzdDAiIGQ9Ik01LDM4YzcuOSwwLDE1LjgsMCwyNCwwYzAsMS4zLDAsMi42LDAsNGMtMC43LDAtMS4zLDAtMiwwYzAsMC43LDAsMS4zLDAsMmMtMC43LDAtMS4zLDAtMiwwYzAtMC43LDAtMS4zLDAtMg0KCWMtMC43LDAtMS4zLDAtMiwwYzAsMC43LDAsMS4zLDAsMmMtMC43LDAtMS4zLDAtMiwwYzAtMC43LDAtMS4zLDAtMmMtMi42LDAtNS4zLDAtOCwwYzAsMC43LDAsMS4zLDAsMmMtMC43LDAtMS4zLDAtMiwwDQoJYzAtMC43LDAtMS4zLDAtMmMtMC43LDAtMS4zLDAtMiwwYzAsMC43LDAsMS4zLDAsMmMtMC43LDAtMS4zLDAtMiwwYzAtMC43LDAtMS4zLDAtMmMtMC43LDAtMS4zLDAtMiwwQzUsNDAuNyw1LDM5LjQsNSwzOHoiLz4NCjxwYXRoIGNsYXNzPSJzdDAiIGQ9Ik0yMCwyOGMxLjMsMCwyLjYsMCw0LDBjMCwxLjMsMCwyLjYsMCw0Yy0xLjMsMC0yLjYsMC00LDBDMjAsMzAuNywyMCwyOS40LDIwLDI4eiIvPg0KPHBhdGggY2xhc3M9InN0MCIgZD0iTTEwLDI4YzEuMywwLDIuNiwwLDQsMGMwLDEuMywwLDIuNiwwLDRjLTEuMywwLTIuNiwwLTQsMEMxMCwzMC43LDEwLDI5LjQsMTAsMjh6Ii8+DQo8cGF0aCBjbGFzcz0ic3QwIiBkPSJNMjMsNDRjMC43LDAsMS4zLDAsMiwwYzAsMC43LDAsMS4zLDAsMmMtMC43LDAtMS4zLDAtMiwwQzIzLDQ1LjMsMjMsNDQuNywyMyw0NHoiLz4NCjxwYXRoIGNsYXNzPSJzdDAiIGQ9Ik05LDQ0YzAuNywwLDEuMywwLDIsMGMwLDAuNywwLDEuMywwLDJjLTAuNywwLTEuMywwLTIsMEM5LDQ1LjMsOSw0NC43LDksNDR6Ii8+DQo8cGF0aCBjbGFzcz0ic3QwIiBkPSJNMTUsMzBjNCwxLDQsMSw0LDFMMTUsMzB6Ii8+DQo8cGF0aCBjbGFzcz0ic3QwIiBkPSJNMTUsMzAuNWMxLjMsMCwyLjYsMCw0LDBjMCwxLjMsMCwwLjEsMCwxLjVjLTEuMywwLTIuNiwwLTQsMEMxNSwzMC43LDE1LDMxLjksMTUsMzAuNXoiLz4NCjwvc3ZnPg0K\"> <!-- Define the SVG filter within the HTML --> <div class=\"div1\"> <h1 class=\"loginH1\">WiFi Login</h1> <div class=\"div2\"> <h4 class=\"loginH4\">SSID:</h4> <input class=\"input1\" type=\"text\" id=\"ssid\" name=\"ssid\" size=\"17\" autocapitalize=\"none\" /> <h4 class=\"loginH4\">Password:</h4> <input class=\"input2\" type=\"text\" id=\"password\" name=\"password\" size=\"13\" autocapitalize=\"none\" /> <button type=\"submit\" class=\"submitBtn submitBtnOverride\" id=\"submitBtn\">SUBMIT</button> </div> </div> <div class=\"popupdiv\" id=\"popupdiv\"> <h1 class=\"popup1\" style=\" margin-left: 15px; margin-right: 15px; \">If the Pal's screen displays a face the connection was successfull, otherwise the Pal will restart and you will need to reconnect to the Pal's WiFi and start over.</h1> </div> <div class=\"line-filter\"></div> </div> <script> var subBtn = document.getElementById('submitBtn'); var clicked = false; subBtn.addEventListener('click', function (event) { if (!clicked) { clicked = true; subBtn.classList.remove(\"submitBtnOverride\"); const ssid = document.getElementById('ssid').value; const password = document.getElementById('password').value; const url = `/?ssid=${encodeURIComponent(ssid)}&password=${encodeURIComponent(password)}`; subBtn.innerHTML = \"CHECK PAL!\"; subBtn.style.backgroundColor = \"#362c00\"; subBtn.style.color = \"#ffcc00\"; fetch(url) .then(response => response.json()) .then(data => console.log(data)) .catch(error => console.error('Error:', error)); } }); </script> </body>";
-
-      request->send(200, "text/html", html);
-    } });
-
-  // Handle POST request to the root route
-  server.on("/", HTTP_POST, [](AsyncWebServerRequest *request)
-            {
-    // Process input from the form
-    if (request->hasParam("ssid", true) && request->hasParam("password", true)) {
-      String ssidInput = request->getParam("ssid", true)->value();
-      String passwordInput = request->getParam("password", true)->value();
-
-      if (connectToWiFi(ssidInput.c_str(), passwordInput.c_str())) {
-        Serial.println("WiFi connected successfully");
-        preferences.putString("password", passwordInput);
-        preferences.putString("ssid", ssidInput);
-        // No need for a html response as it wont be connected to the wifi anymore
-        preferences.end();
-        delay(500);
-        ESP.restart();
-      } else {
-        Serial.println("Unable to connect to WiFi");
-        // Respond with an error page and a button to return to the root
-        String errorHtml = "<html><body><h1>ERROR</h1>"
-                           "<p>Unable to connect to the WiFi network, please check your credentials.</p>"
-                           "<a href='/'>Return to home</a></body></html>";
-        request->send(200, "text/html", errorHtml);
-      };
-    } else {
-      request->send_P(400, "text/plain", PSTR("Bad Request"));
-    } });
-
-  server.begin();
-}
-
-server.on("/heartbeat", HTTP_GET, [](AsyncWebServerRequest *request)
-          {
-  lastHeartbeatTime = millis(); // Update last heartbeat time
-  request->send(200, "text/plain", "Heartbeat received"); });
-
-server.on("/isPal", HTTP_GET, [](AsyncWebServerRequest *request)
-          {
-            request->send(200, "text/plain", "BulletPalV1.0.0"); // responds back with the version of the bulletpal (1.0 = software ver, .0 = model (0 = 9mm, 1 == shotgun slug, etc))
-          });
-
-bool connectToWiFi(const char *ssid, const char *password)
-{
-  Serial.println("Connecting to WiFi...");
-  // Set WiFi mode to station (client) mode
-  WiFi.mode(WIFI_STA);
-
-  // Attempt to connect to the provided network
-  WiFi.begin(ssid, password);
-  int attempts = 0;
-
-  // Wait for the connection
-  while (WiFi.status() != WL_CONNECTED && attempts < 30)
-  {
-    delay(1000);
-    Serial.print(".");
-    attempts++;
-  }
-
-  if (WiFi.status() == WL_CONNECTED)
-  {
-    Serial.println("\nWiFi connected");
-    return true;
-  }
-  else
-  {
-    Serial.println("\nConnection failed");
-    return false;
-  }
-}
-
-int RAC = 0; // Random action index.
-unsigned long previousMillis = 0;
-const long interval = 1000; // Delay interval in milliseconds
-unsigned long lastHeartbeatTime = 0;
-const long heartbeatInterval = 10000; // 10 seconds in milliseconds
-
-void loop()
-{
-  if (dev_mode == false)
-  {
-    if (loop_state == true)
-    {
-      // MAIN FUNCTIONALITY OF PROGRAM GOES HERE>>>
-      unsigned long WAIT_TIME = randomDelay(4, 70); // The time inbetween emotions in milliseconds.
-      RAC = randomInRange(0, 6);                    // Random action
-      if (RAC == last_emotion)
-      {
-        RAC = randomInRange(0, 6);
-      }; // Makes sure action isnt the same as previous.
-      Serial.println("[*] Random action: " + String(RAC) + " | Delay till next loop: " + String(WAIT_TIME));
-      playRandomAnimation(WAIT_TIME);
-      Serial.println("\n[*] Looping main loop.");
-    }
-    else
-    {
-      Serial.println("\n[*] Looping setup loop.");
-      delay(250);
-    };
-  }
-  else
-  {
-    unsigned long currentMillis = millis();
-    // Check if it's time to print the heartbeat status
-    if (currentMillis - lastHeartbeatTime >= heartbeatInterval)
-    {
-      Serial.println("Failed to receive heartbeat request");
-      // Reset lastHeartbeatTime to avoid immediate retry
-      lastHeartbeatTime = currentMillis;
-      dev_mode = false;
-      anim_idle();
-    };
-    // Other non-blocking tasks can be performed here
-    // Keep cycling as dev mode is fully request based. no autonomy performed.
-  }
 }
 
 // Function to generate a random delay between X and Y seconds
@@ -3042,6 +2855,11 @@ void playRandomAnimation(int totalDurationSeconds)
 
     // Delay until next animation point
     delay(delayUntilNextPoint * 1000); // Convert seconds to milliseconds
+    if (dev_mode == true)
+    {
+      i = numAnimationPoints;
+      return;
+    };
   }
 
   // Play default animation after unique animations end
@@ -3234,7 +3052,7 @@ void anim_sad()
 {
   // Sad emotion
   display.clearDisplay();
-  display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_sad, 128, 64, SSD1306_WHITE);
+  display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_sad_1, 128, 64, SSD1306_WHITE);
   display.display();
 };
 
@@ -3258,7 +3076,7 @@ void anim_sad_tear()
   display.display();
   delay(150);
   display.clearDisplay();
-  display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_sad, 128, 64, SSD1306_WHITE);
+  display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_sad_1, 128, 64, SSD1306_WHITE);
   display.display();
   delay(150);
 }
@@ -3288,24 +3106,187 @@ void anim_sad_hungry()
   delay(150);
 }
 
-// |-----------------|
-// | Web server shit |
-// |-----------------|
+bool connectToWiFi(const char *ssid, const char *password)
+{
+  Serial.println("Connecting to WiFi...");
+  // Set WiFi mode to station (client) mode
+  WiFi.mode(WIFI_STA);
+  WiFi.setHostname("BulletPalV1.0");
 
-server.on("/setdev", HTTP_POST, [](AsyncWebServerRequest *request)
-          {
-  if (request->hasParam("mode", true)) {
-    AsyncWebParameter *param = request->getParam("mode", true);
+  // Attempt to connect to the provided network
+  WiFi.begin(ssid, password);
+  int attempts = 0;
+
+  // Wait for the connection
+  while (WiFi.status() != WL_CONNECTED && attempts < 30)
+  {
+    delay(1000);
+    Serial.print(".");
+    attempts++;
+  }
+
+  if (WiFi.status() == WL_CONNECTED)
+  {
+    Serial.println("\nWiFi connected");
+    return true;
+  }
+  else
+  {
+    Serial.println("\nConnection failed");
+    return false;
+  }
+}
+
+void setup()
+{
+  Serial.begin(9600);
+  delay(2000);
+  Serial.println(F("Starting!"));
+  preferences.begin("bullet-pal", false);
+  if (!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS))
+  {
+    Serial.println(F("SSD1306 allocation failed"));
+    for (;;)
+      ; // Don't proceed, loop forever
+  }
+  Serial.println(F("Initialized Display!"));
+  display.clearDisplay();
+  display.setRotation(2);
+  display.drawBitmap(
+      (display.width() - 128) / 2,
+      (display.height() - 64) / 2,
+      indicator_loading, 128, 64, 1);
+  display.display();
+  // Find out if there is a saved AP stored.
+  String saved_ssid = preferences.getString("ssid", "");
+  if (saved_ssid == "")
+  {
+    // No SSID found. Start in AP mode so a SSID can be set.
+    // Create AP point.
+    Serial.println("\n[*] Creating AP");
+    WiFi.mode(WIFI_AP);
+    WiFi.softAPConfig(local_ip, gateway, subnet);
+    WiFi.softAP(ssid, NULL);
+    WiFi.onEvent(WiFiEvent);
+    Serial.print("[+] AP Created with IP Gateway ");
+    Serial.println(WiFi.softAPIP());
+    // Display the indicator to use your phone to connect to the AP.
+    delay(2000);
+    display.clearDisplay();
+    display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, indicator_wifi, 128, 64, SSD1306_WHITE);
+    display.display();
+    Serial.println("\n[*] Displayed indicator_WiFi");
+    delay(1000);
+  }
+  else
+  {
+    // We found a SSID saved. Proceed foward.
+    String saved_password = preferences.getString("password", "");
+    const char *ssid_ch = saved_ssid.c_str();
+    const char *pass_ch = saved_password.c_str();
+
+    Serial.println("\n[*] Connecting to Wifi network: " + saved_ssid);
+    if (connectToWiFi(ssid_ch, pass_ch))
+    {
+      // If it connects successfully we can continue.
+      Serial.println("SSID found and connected, starting main loop.");
+      server.begin();
+      loop_state = true;
+      display.clearDisplay();
+      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_idle, 128, 64, SSD1306_WHITE);
+      display.display();
+      delay(7000);
+    }
+    else
+    {
+      // Unsuccessful connection with stored data. Reset data and reboot.
+      preferences.remove("ssid");
+      preferences.remove("password");
+      display.clearDisplay();
+      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, indicator_wifi_fail, 128, 64, SSD1306_WHITE);
+      display.display();
+      delay(5000);
+      display.clearDisplay();
+      display.setCursor(0, 0);
+      display.setTextColor(SSD1306_WHITE);
+      display.setTextSize(4);
+      display.println("Unable to Connect-");
+      display.setTextSize(2);
+      display.println("Failed after 30 attempts...");
+      display.println("Reverting to setup mode...");
+      display.display();
+      preferences.end();
+      delay(2000);
+      ESP.restart();
+    }
+  }
+
+  // Declare webserver handles.
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request)
+            {
+    if (loop_state == false) {
+      // Respond to GET request with a form for SSID and password
+      String html ="<head> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"> <style> ";
+      html +="font-face { font-family: 'glass_tty_vt220medium'; src: url(data:application/font-woff2;charset=utf-8;base64,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) format('woff2'); font-weight: normal; font-style: normal; } body { font-family: 'glass_tty_vt220medium'; height: 100%; margin: 0; display: flex; justify-content: center; align-items: center; background-color: #110e00; } .logo { position: absolute; top: 8%; width: 35vw; left: 35vw; height: auto; } .input1 { position: absolute; top: 0%; left: 30%; color: #ffcc00; background-color: #362c00; outline: none; border: #5c4b00 1px; font-weight: bold; font-family: sans-serif; } .input2 { position: absolute; top: 70%; left: 49%; color: #ffcc00; background-color: #362c00; font-weight: bold; font-family: sans-serif; outline: none; border: #5c4b00 1px; } .submitBtn { position: absolute; top: 140%; left: 30%; background-color: #ffcc00; color: #362c00; font-family: monospace; width: 120px; height: 25px; font-weight: bolder; border: #362c00; cursor: pointer; } .submitBtnOverride:hover { background-color: #5c4b00; color: #ffcc00; } ";
+      html +="media (min-width: 920px) { .logo { position: absolute; top: 6%; width: 15%; height: auto; left: 44%; display: block; margin-left: auto; margin-right: auto; } .div1 { position: relative; top: -12vh; left: 10%; } } .line-filter { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: repeating-linear-gradient(transparent, transparent 2px, rgba(11, 9, 0, 0.3) 3px, rgba(11, 9, 0, 0.3) 4px); pointer-events: none } .scanlines { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-image: linear-gradient(to bottom, rgba(255, 204, 0, 0.1) 1px, transparent 2px); z-index: 1; pointer-events: none; animation: scan 27s linear infinite; } ";
+      html += "keyframes scan { 0% { background-position: 0 -100vh; } 100% { background-position: 0 100vh; } } .loginH1 { color: #ffcc00; } .loginH4 { color: #ffcc00; } .div1 { position: relative; top: 3vw; left: 10%; } .div2 { position: relative; top: 10%; left: -12%; } .popupdiv { background-color: #ffcc00; color: #362c00; font-family: monospace; font-size: 10px; width: 100%; height: 75px; position: absolute; bottom: 0%; left: 0%; } </style> </head> <body> <div> <div class=\"scanlines\"></div> <img class=\"logo\" src=\"data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4NCjwhLS0gR2VuZXJhdG9yOiBBZG9iZSBJbGx1c3RyYXRvciAyOC4wLjAsIFNWRyBFeHBvcnQgUGx1Zy1JbiAuIFNWRyBWZXJzaW9uOiA2LjAwIEJ1aWxkIDApICAtLT4NCjxzdmcgdmVyc2lvbj0iMS4xIiBpZD0iTGF5ZXJfMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayIgeD0iMHB4IiB5PSIwcHgiDQoJIHZpZXdCb3g9IjAgMCAzNCA0NyIgc3R5bGU9ImVuYWJsZS1iYWNrZ3JvdW5kOm5ldyAwIDAgMzQgNDc7IiB4bWw6c3BhY2U9InByZXNlcnZlIj4NCjxzdHlsZSB0eXBlPSJ0ZXh0L2NzcyI+DQoJLnN0MHtmaWxsOiNGRkNDMDA7fQ0KPC9zdHlsZT4NCjxwYXRoIGNsYXNzPSJzdDAiIGQ9Ik0xMywyYzIuNiwwLDUuMywwLDgsMGMwLDAuNywwLDEuMywwLDJjMC43LDAsMS4zLDAsMiwwYzAsMC43LDAsMS4zLDAsMmMwLjcsMCwxLjMsMCwyLDBjMCwwLjcsMCwxLjMsMCwyDQoJYzAuNywwLDEuMywwLDIsMGMwLDEsMCwyLDAsM2MwLjcsMCwxLjMsMCwyLDBjMCwyLDAsNCwwLDZjLTIsMC00LDAtNiwwYzAtMC43LDAtMS4zLDAtMmMwLjcsMCwxLjMsMCwyLDBjMC0xLjMsMC0yLjYsMC00DQoJYy0wLjcsMC0xLjMsMC0yLDBjMC0xLDAtMiwwLTNjLTAuNywwLTEuMywwLTIsMGMwLTAuNywwLTEuMywwLTJjLTEuMywwLTIuNiwwLTQsMGMwLDEuMywwLDIuNiwwLDRjMS4zLDAuMywyLjYtMC4xLDMuOSwwLjINCgljMCwxLjMsMC4xLDMuNCwwLjEsNC44Yy0wLjcsMC0xLjMsMC0yLDBjMCwwLjcsMCwxLjMsMCwyYy00LjYsMC05LjIsMC0xNCwwYzAtMiwwLTQsMC02YzAuNywwLDEuMywwLDIsMGMwLTEsMC0yLDAtMw0KCWMwLjcsMCwxLjMsMCwyLDBjMC0wLjcsMC0xLjMsMC0yYzAuNywwLDEuMywwLDIsMGMwLTAuNywwLTEuMywwLTJjMC43LDAsMS4zLDAsMiwwQzEzLDMuMywxMywyLjcsMTMsMnoiLz4NCjxwYXRoIGNsYXNzPSJzdDAiIGQ9Ik01LDE5YzcuOSwwLDE1LjgsMCwyNCwwYzAsNS42LDAsMTEuMiwwLDE3Yy03LjksMC0xNS44LDAtMjQsMEM1LDMwLjQsNSwyNC44LDUsMTl6IE03LDI0YzAsMy4zLDAsNi42LDAsMTANCgljNi42LDAsMTMuMiwwLDIwLDBjMC0zLjMsMC02LjYsMC0xMEMyMC40LDI0LDEzLjgsMjQsNywyNHoiLz4NCjxwYXRoIGNsYXNzPSJzdDAiIGQ9Ik01LDM4YzcuOSwwLDE1LjgsMCwyNCwwYzAsMS4zLDAsMi42LDAsNGMtMC43LDAtMS4zLDAtMiwwYzAsMC43LDAsMS4zLDAsMmMtMC43LDAtMS4zLDAtMiwwYzAtMC43LDAtMS4zLDAtMg0KCWMtMC43LDAtMS4zLDAtMiwwYzAsMC43LDAsMS4zLDAsMmMtMC43LDAtMS4zLDAtMiwwYzAtMC43LDAtMS4zLDAtMmMtMi42LDAtNS4zLDAtOCwwYzAsMC43LDAsMS4zLDAsMmMtMC43LDAtMS4zLDAtMiwwDQoJYzAtMC43LDAtMS4zLDAtMmMtMC43LDAtMS4zLDAtMiwwYzAsMC43LDAsMS4zLDAsMmMtMC43LDAtMS4zLDAtMiwwYzAtMC43LDAtMS4zLDAtMmMtMC43LDAtMS4zLDAtMiwwQzUsNDAuNyw1LDM5LjQsNSwzOHoiLz4NCjxwYXRoIGNsYXNzPSJzdDAiIGQ9Ik0yMCwyOGMxLjMsMCwyLjYsMCw0LDBjMCwxLjMsMCwyLjYsMCw0Yy0xLjMsMC0yLjYsMC00LDBDMjAsMzAuNywyMCwyOS40LDIwLDI4eiIvPg0KPHBhdGggY2xhc3M9InN0MCIgZD0iTTEwLDI4YzEuMywwLDIuNiwwLDQsMGMwLDEuMywwLDIuNiwwLDRjLTEuMywwLTIuNiwwLTQsMEMxMCwzMC43LDEwLDI5LjQsMTAsMjh6Ii8+DQo8cGF0aCBjbGFzcz0ic3QwIiBkPSJNMjMsNDRjMC43LDAsMS4zLDAsMiwwYzAsMC43LDAsMS4zLDAsMmMtMC43LDAtMS4zLDAtMiwwQzIzLDQ1LjMsMjMsNDQuNywyMyw0NHoiLz4NCjxwYXRoIGNsYXNzPSJzdDAiIGQ9Ik05LDQ0YzAuNywwLDEuMywwLDIsMGMwLDAuNywwLDEuMywwLDJjLTAuNywwLTEuMywwLTIsMEM5LDQ1LjMsOSw0NC43LDksNDR6Ii8+DQo8cGF0aCBjbGFzcz0ic3QwIiBkPSJNMTUsMzBjNCwxLDQsMSw0LDFMMTUsMzB6Ii8+DQo8cGF0aCBjbGFzcz0ic3QwIiBkPSJNMTUsMzAuNWMxLjMsMCwyLjYsMCw0LDBjMCwxLjMsMCwwLjEsMCwxLjVjLTEuMywwLTIuNiwwLTQsMEMxNSwzMC43LDE1LDMxLjksMTUsMzAuNXoiLz4NCjwvc3ZnPg0K\"> <!-- Define the SVG filter within the HTML --> <div class=\"div1\"> <h1 class=\"loginH1\">WiFi Login</h1> <div class=\"div2\"> <h4 class=\"loginH4\">SSID:</h4> <input class=\"input1\" type=\"text\" id=\"ssid\" name=\"ssid\" size=\"17\" autocapitalize=\"none\" /> <h4 class=\"loginH4\">Password:</h4> <input class=\"input2\" type=\"text\" id=\"password\" name=\"password\" size=\"13\" autocapitalize=\"none\" /> <button type=\"submit\" class=\"submitBtn submitBtnOverride\" id=\"submitBtn\">SUBMIT</button> </div> </div> <div class=\"popupdiv\" id=\"popupdiv\"> <h1 class=\"popup1\" style=\" margin-left: 15px; margin-right: 15px; \">If the Pal's screen displays a face the connection was successfull, otherwise the Pal will restart and you will need to reconnect to the Pal's WiFi and start over.</h1> </div> <div class=\"line-filter\"></div> </div> <script> var subBtn = document.getElementById('submitBtn'); var clicked = false; subBtn.addEventListener('click', function (event) { if (!clicked) { clicked = true; subBtn.classList.remove(\"submitBtnOverride\"); const ssid = document.getElementById('ssid').value; const password = document.getElementById('password').value; const url = `/?ssid=${encodeURIComponent(ssid)}&password=${encodeURIComponent(password)}`; subBtn.innerHTML = \"CHECK PAL!\"; subBtn.style.backgroundColor = \"#362c00\"; subBtn.style.color = \"#ffcc00\"; fetch(url) .then(response => response.json()) .then(data => console.log(data)) .catch(error => console.error('Error:', error)); } }); </script> </body>";
+      request->send(200, "text/html", html);
+    } });
+
+  // Handle POST request to the root route
+  server.on("/", HTTP_POST, [](AsyncWebServerRequest *request)
+            {
+    // Process input from the form
+    if (request->hasParam("ssid", true) && request->hasParam("password", true)) {
+      String ssidInput = request->getParam("ssid", true)->value();
+      String passwordInput = request->getParam("password", true)->value();
+
+      if (connectToWiFi(ssidInput.c_str(), passwordInput.c_str())) {
+        Serial.println("WiFi connected successfully");
+        preferences.putString("password", passwordInput);
+        preferences.putString("ssid", ssidInput);
+        // No need for a html response as it wont be connected to the wifi anymore
+        preferences.end();
+        delay(500);
+        ESP.restart();
+      } else {
+        Serial.println("Unable to connect to WiFi");
+        // Respond with an error page and a button to return to the root
+        String errorHtml = "<html><body><h1>ERROR</h1>"
+                           "<p>Unable to connect to the WiFi network, please check your credentials.</p>"
+                           "<a href='/'>Return to home</a></body></html>";
+        request->send(200, "text/html", errorHtml);
+      };
+    } else {
+      request->send_P(400, "text/plain", PSTR("Bad Request"));
+    } });
+
+  server.on("/heartbeat", HTTP_GET, [](AsyncWebServerRequest *request)
+            {
+    lastHeartbeatTime = millis(); // Update last heartbeat time
+    request->send(200, "text/plain", "Heartbeat received"); });
+
+  server.on("/isPal", HTTP_GET, [](AsyncWebServerRequest *request)
+            {
+              request->send(200, "text/plain", "BulletPalV1.0.0"); // responds back with the version of the bulletpal (1.0 = software ver, .0 = model (0 = 9mm, 1 == shotgun slug, etc))
+            });
+  server.on("/setdev", HTTP_POST, [](AsyncWebServerRequest *request)
+            {
+  if (request->hasParam("mode", false)) {
+    const AsyncWebParameter *param = request->getParam("mode", false);
     String mode = param->value();
     Serial.print("Received setmode: ");
     Serial.println(mode);
+    mode.trim();
     if(mode == "dev"){
+      Serial.println("Set mode to DEV");
       dev_mode = true;
       display.clearDisplay();
       display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, indicator_loading, 128, 64, SSD1306_WHITE);
       display.display();
       request->send(200, "text/plain", "Mode set to DEV_MODE");
     }else{
+      Serial.println("Set mode to DEFAULT");
       dev_mode = false;
       request->send(200, "text/plain", "Mode set to DEFAULT_MODE");
     }
@@ -3313,212 +3294,216 @@ server.on("/setdev", HTTP_POST, [](AsyncWebServerRequest *request)
     request->send(400, "text/plain", "Missing 'mode' parameter. empty value for 'mode' or non 'dev' value will result in DEFAULT_MODE. 'dev' enables DEV_MODE.");
   }; });
 
-server.on("/setemotion", HTTP_POST, [](AsyncWebServerRequest *request)
-          {
+  server.on("/setemotion", HTTP_POST, [](AsyncWebServerRequest *request)
+            {
   if (request->hasParam("emotion", true)) {
-    AsyncWebParameter *param = request->getParam("emotion", true);
+    const AsyncWebParameter *param = request->getParam("emotion", true);
     String emotion = param->value();
     Serial.print("Received emotion: ");
     Serial.println(emotion);
+    emotion.trim();
     // Process the received emotion here
-    switch (emotion) {
-      case "idle":
-        anim_idle();
-        break;
-      case "idle_blink":
-        anim_idle_blink();
-        break;
-      case "sleep":
-        anim_sleep();
-        break;
-      case "sleep_zzz":
-        anim_sleep_zzz();
-        break;
-      case "dead":
-        anim_dead();
-        break;
-      case "dead_drool":
-        anim_dead_drool();
-        break;
-      case "happy_1":
-        anim_happy_1();
-        break;
-      case "happy_1_blink":
-        anim_happy_1_blink();
-        break;
-      case "happy_1_wink":
-        anim_happy_1_wink();
-        break;
-      case "happy_2":
-        anim_happy_2();
-        break;
-      case "happy_2_blink":
-        anim_happy_2_blink();
-        break;
-      case "angry":
-        anim_angry();
-        break;
-      case "angry_symbol":
-        anim_angry_symbol();
-        break;
-      case "angry_shake":
-        anim_angry_shake();
-        break;
-      case "sad":
-        anim_sad();
-        break;
-      case "sad_tear":
-        anim_sad_tear();
-        break;
-      case "sad_hungry":
-        anim_sad_hungry();
-        break;
-      default:
-        request->send(406, "text/plain", "Emotion requested does not exist. GET /listemotion for all valid emotions.");
-    }
+    if(emotion == "idle"){
+      anim_idle();
+    } else if (emotion == "idle_blink"){
+      anim_idle_blink();
+    } else if (emotion == "sleep"){
+      anim_sleep();
+    } else if (emotion == "sleep_zzz"){
+      anim_sleep_zzz();
+    } else if (emotion == "dead"){
+      anim_dead();
+    } else if (emotion == "dead_drool"){
+      anim_dead_drool();
+    } else if (emotion == "happy_1"){
+      anim_happy_1();
+    } else if (emotion == "happy_1_blink"){
+      anim_happy_1_blink();
+    } else if (emotion == "happy_1_wink"){
+      anim_happy_1_wink();
+    } else if (emotion == "happy_2"){
+      anim_happy_2();
+    } else if (emotion == "happy_2_blink"){
+      anim_happy_2_blink();
+    } else if (emotion == "angry"){
+      anim_angry();
+    } else if (emotion == "angry_symbol"){
+      anim_angry_symbol();
+    } else if (emotion == "angry_shake"){
+      anim_angry_shake();
+    } else if (emotion == "sad"){
+      anim_sad();
+    } else if (emotion == "sad_tear"){
+      anim_sad_tear();
+    } else if (emotion == "sad_hungry"){
+      anim_sad_hungry();
+    } else{
+      request->send(406, "text/plain", "Emotion requested does not exist. GET /listemotion for all valid emotions.");
+    };
     request->send(200, "text/plain", "Emotion set successfully");
   } else {
     request->send(400, "text/plain", "Missing 'emotion' parameter");
   } });
 
-server.on("setrawemotion", HTTP_POST, [](AsyncWebServerRequest *request)
-          {
+  server.on("setrawemotion", HTTP_POST, [](AsyncWebServerRequest *request)
+            {
   if (request->hasParam("emotion", true)) {
-    AsyncWebParameter *param = request->getParam("emotion", true);
+    const AsyncWebParameter *param = request->getParam("emotion", true);
     String emotion = param->value();
     Serial.print("Received emotion: ");
     Serial.println(emotion);
+    emotion.trim();
     // Process the received emotion here
     display.clearDisplay();
-    switch (emotion) {
-        case "idle":
-          display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_idle, 128, 64, SSD1306_WHITE);
-          break;
-        case "idle_blink":
-          display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_blink, 128, 64, SSD1306_WHITE);
-          break;
-        case "sleep":
-          display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_sleep, 128, 64, SSD1306_WHITE);
-          break;
-        case "sleep_zzz_1":
-          display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_sleep_1, 128, 64, SSD1306_WHITE);
-          break;
-        case "sleep_zzz_2":
-          display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_sleep_2, 128, 64, SSD1306_WHITE);
-          break;
-        case "sleep_zzz_3":
-          display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_sleep_3, 128, 64, SSD1306_WHITE);
-          break;
-        case "dead":
-          display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_dead, 128, 64, SSD1306_WHITE);
-          break;
-        case "dead_drool_1":
-          display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_dead_1, 128, 64, SSD1306_WHITE);
-          break;
-        case "dead_drool_2"
-          display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_dead_2, 128, 64, SSD1306_WHITE);
-          break;
-        case "dead_drool_3"
-          display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_dead_3, 128, 64, SSD1306_WHITE);
-          break;
-        case "dead_drool_4"
-          display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_dead_4, 128, 64, SSD1306_WHITE);
-          break;
-        case "dead_drool_5"
-          display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_dead_5, 128, 64, SSD1306_WHITE);
-          break;
-        case "happy_1":
-          display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_happy_1, 128, 64, SSD1306_WHITE);
-          break;
-        case "happy_1_blink_1":
-          display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_happy_1_blink_1, 128, 64, SSD1306_WHITE);
-          break;
-        case "happy_1_wink":
-          display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_happy_1_blink_2, 128, 64, SSD1306_WHITE);
-          break;
-        case "happy_2":
-          display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_happy_2, 128, 64, SSD1306_WHITE);
-          break;
-        case "happy_2_blink":
-          display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_happy_2_blink_1, 128, 64, SSD1306_WHITE);
-          break;
-        case "angry":
-          display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_angry, 128, 64, SSD1306_WHITE);
-          break;
-        case "angry_symbol":
-          display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_angry_symbol, 128, 64, SSD1306_WHITE);
-          break;
-        case "angry_shake_1":
-          display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_angry_shake_1, 128, 64, SSD1306_WHITE);
-          break;
-        case "angry_shake_2":
-          display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_angry_shake_2, 128, 64, SSD1306_WHITE);
-          break;
-        case "angry_shake_3":
-          display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_angry_shake_3, 128, 64, SSD1306_WHITE);
-          break;
-        case "angry_shake_4":
-          display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_angry_shake_4, 128, 64, SSD1306_WHITE);
-          break;
-        case "angry_shake_5":
-          display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_angry_shake_5, 128, 64, SSD1306_WHITE);
-          break;
-        case "sad_tear_1":
-          display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_sad_1_1, 128, 64, SSD1306_WHITE);
-          break;
-        case "sad_hungry":
-          display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_sad_1_hungry, 128, 64, SSD1306_WHITE);
-          break;
-        case "idle_hungry":
-          display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_idle_hungry, 128, 64, SSD1306_WHITE);
-          break;
-        case "sad_tear_hungry":
-          display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_sad_1_1_hungry, 128, 64, SSD1306_WHITE);
-          break;
-        default:
-          display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_idle, 128, 64, SSD1306_WHITE);
-          request->send(406, "text/plain", "Emotion requested does not exist. GET /listemotion for all valid emotions.");
-      }
-      request->send(200, "text/plain", "Emotion updated successfully.");
-      display.display();
-  }
- else {
-  request->send(400, "text/plain", "Missing 'emotion' parameter");
-  }; });
+    if(emotion == "idle"){
+      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_idle, 128, 64, SSD1306_WHITE);
+    } else if(emotion = "idle_blink"){
+      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_blink, 128, 64, SSD1306_WHITE);
+    } else if(emotion = "sleep"){
+      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_blink, 128, 64, SSD1306_WHITE);
+    } else if(emotion = "sleep_zzz_1"){
+      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_sleep_1, 128, 64, SSD1306_WHITE);
+    } else if(emotion = "sleep_zzz_2"){
+      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_sleep_2, 128, 64, SSD1306_WHITE);
+    } else if(emotion = "sleep_zzz_3"){
+      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_sleep_3, 128, 64, SSD1306_WHITE);
+    } else if(emotion = "dead"){
+      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_dead, 128, 64, SSD1306_WHITE);
+    } else if(emotion = "dead_drool_1"){
+      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_dead_1, 128, 64, SSD1306_WHITE);
+    } else if(emotion = "dead_drool_2"){
+      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_dead_2, 128, 64, SSD1306_WHITE);
+    } else if(emotion = "dead_drool_3"){
+      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_dead_3, 128, 64, SSD1306_WHITE);
+    } else if(emotion = "dead_drool_4"){
+      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_dead_4, 128, 64, SSD1306_WHITE);
+    } else if(emotion = "dead_drool_5"){
+      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_dead_5, 128, 64, SSD1306_WHITE);
+    } else if(emotion = "happy_1"){
+      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_happy_1, 128, 64, SSD1306_WHITE);
+    } else if(emotion = "happy_1_blink_1"){
+      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_happy_1_blink_1, 128, 64, SSD1306_WHITE);
+    } else if(emotion = "happy_1_wink"){
+      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_happy_1_blink_2, 128, 64, SSD1306_WHITE);
+    } else if(emotion = "happy_2"){
+      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_happy_2, 128, 64, SSD1306_WHITE);
+    } else if(emotion = "happy_2_blink"){
+      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_happy_2_blink_1, 128, 64, SSD1306_WHITE);
+    } else if(emotion = "angry"){
+      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_angry, 128, 64, SSD1306_WHITE);
+    } else if(emotion = "angry_symbol"){
+      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_angry_symbol, 128, 64, SSD1306_WHITE);
+    } else if(emotion = "angry_shake_1"){
+      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_angry_shake_1, 128, 64, SSD1306_WHITE);
+    } else if(emotion = "angry_shake_2"){
+      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_angry_shake_2, 128, 64, SSD1306_WHITE);
+    } else if(emotion = "angry_shake_3"){
+      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_angry_shake_3, 128, 64, SSD1306_WHITE);
+    } else if(emotion = "angry_shake_4"){
+      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_angry_shake_4, 128, 64, SSD1306_WHITE);
+    } else if(emotion = "angry_shake_5"){
+      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_angry_shake_5, 128, 64, SSD1306_WHITE);
+    } else if(emotion = "sad_tear_1"){
+      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_sad_1_1, 128, 64, SSD1306_WHITE);
+    } else if(emotion = "sad_hungry"){
+      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_sad_1_hungry, 128, 64, SSD1306_WHITE);
+    } else if(emotion = "idle_hungry"){
+      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_idle_hungry, 128, 64, SSD1306_WHITE);
+    } else if(emotion = "sad_tear_hungry"){
+      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_sad_1_1_hungry, 128, 64, SSD1306_WHITE);
+    } else {
+      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_idle, 128, 64, SSD1306_WHITE);
+      request->send(406, "text/plain", "Emotion requested does not exist. GET /listemotion for all valid emotions.");
+    };
+    request->send(200, "text/plain", "Emotion updated successfully.");
+    display.display();
+  } else {
+    request->send(400, "text/plain", "Missing 'emotion' parameter");
+  } });
 
-server.on("/displayImage", HTTP_POST, [](AsyncWebServerRequest *request)
+  server.on("/displayImage", HTTP_POST, [](AsyncWebServerRequest *request)
+            {
+    // Read the body of the request
+    String requestBody;
+    if (request->hasParam("body")) { // true means get the body param as POST
+        requestBody = request->getParam("body")->value();
+    } else {
+        request->send(400, "text/plain", "No body found in the request");
+        return;
+    }
+
+    // Parse JSON
+    StaticJsonDocument<1024> doc;
+    DeserializationError error = deserializeJson(doc, requestBody);
+    if (error) {
+        Serial.print("deserializeJson() failed: ");
+        Serial.println(error.c_str());
+        request->send(400, "text/plain", "deserializeJson() failed [!!MAKE SURE THERE IS A JSON PROPERTY OF 'image' with a byte array image!!]: " + String(error.c_str()));
+        return;
+    }
+
+    // Get the byte array from JSON
+    const char* imageBytes = doc["image"];
+    if (imageBytes == nullptr) {
+        request->send(400, "text/plain", "No 'image' property found in the JSON");
+        return;
+    }
+
+    // Display the image
+    display.clearDisplay();
+    display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, (uint8_t *)imageBytes, 128, 64, SSD1306_WHITE);
+    display.display();
+
+    request->send(200, "text/plain", "Image displayed successfully."); });
+};
+
+void loop()
 {
-  // Buffer to store the incoming request body
-  uint8_t buffer[1024];
-  size_t len = request->contentLength();
-  size_t bytesRead = request->readBytes(buffer, len);
-
-  // Parse the JSON from the buffer
-  StaticJsonDocument<1024> doc;
-  DeserializationError error = deserializeJson(doc, buffer, bytesRead);
-  if (error) {
-    Serial.print("deserializeJson() failed: ");
-    Serial.println(error.c_str());
-    request->send(400, "text/plain", "deserializeJson() failed: " + String(error.c_str()));
-    return;
+  if (dev_mode == false)
+  {
+    if (loop_state == true)
+    {
+      // MAIN FUNCTIONALITY OF PROGRAM GOES HERE>>>
+      unsigned long WAIT_TIME = randomDelay(4, 70); // The time inbetween emotions in milliseconds.
+      RAC = randomInRange(0, 6);                    // Random action
+      if (RAC == last_emotion)
+      {
+        RAC = randomInRange(0, 6);
+      }; // Makes sure action isnt the same as previous.
+      Serial.println("[*] Random action: " + String(RAC) + " | Delay till next loop: " + String(WAIT_TIME));
+      playRandomAnimation(WAIT_TIME);
+      Serial.println("\n[*] Looping main loop.");
+    }
+    else
+    {
+      Serial.println("\n[*] Looping setup loop.");
+      delay(250);
+    };
   }
-
-  // Extract the Base64 encoded image from the JSON
-  const char* base64Image = doc["image"];
-
-  // Decode the Base64 string into a byte array
-  int imageSize = Base64.decodedLength(base64Image); // Calculate the size of the decoded data
-  uint8_t decodedImage[imageSize]; // Create a byte array to hold the decoded data
-  Base64.decode(decodedImage, base64Image, strlen(base64Image)); // Decode the Base64 string
-
-  // Display the decoded image on the screen
-  display.clearDisplay();
-  display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, decodedImage, 128, 64, SSD1306_WHITE);
-  display.display();
-
-  // Send a response back to the client
-  request->send(200, "text/plain", "Image displayed successfully.");
-});
-
-server.on("/listemotion", HTTP_GET, [](AsyncWebServerRequest *request)
-          { request->send(200, "text/plain", "All secondary emotions will reset back to the primary emotion once its animation has ended if using the /setemotion endpoint. use the /setrawemotion to use just the frame. emotions: [ idle, idle_blink, sleep, sleep_zzz, dead, dead_drool, happy_1, happy_1_blink, happy_1_wink, happy_2, happy_2_blink, angry, angry_symbol, angry_shake, sad, sad_tear, sad_hungry ] | rawemotions: []"); });
+  else
+  {
+    unsigned long currentMillis = millis();
+    unsigned long interval = 10000;
+    unsigned long eq = (currentMillis - lastHeartbeatTime);
+    // Check if it's time to print the heartbeat status
+    if (eq > interval)
+    {
+      if (eq < 400000000){
+      Serial.println("Failed to receive heartbeat request");
+      Serial.println(currentMillis);
+      Serial.println(lastHeartbeatTime);
+      Serial.println(heartbeatInterval);
+      Serial.print((lastHeartbeatTime - currentMillis));
+      Serial.print(" : ");
+      Serial.println(interval);
+      Serial.println((currentMillis - lastHeartbeatTime) > interval);
+      // Reset lastHeartbeatTime to avoid immediate retry
+      lastHeartbeatTime = currentMillis;
+      dev_mode = false;
+      anim_idle();
+      }
+    };
+    // Other non-blocking tasks can be performed here
+    //  Keep cycling as dev mode is fully request based. no autonomy performed.
+  }
+}
