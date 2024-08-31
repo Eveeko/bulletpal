@@ -9,6 +9,7 @@
 #include <esp_random.h>
 #include <ArduinoJson.h>
 #include <Arduino.h>
+#include <Base64.h>
 
 // 'default_sad_2_5', 128x64px
 const unsigned char default_sad_2_5[] PROGMEM = {
@@ -3423,38 +3424,37 @@ void setup()
 
   server.on("/displayImage", HTTP_POST, [](AsyncWebServerRequest *request)
             {
-    // Read the body of the request
-    String requestBody;
-    if (request->hasParam("body")) { // true means get the body param as POST
-        requestBody = request->getParam("body")->value();
-    } else {
-        request->send(400, "text/plain", "No body found in the request");
-        return;
-    }
+  // Buffer to store the incoming request body
+  uint8_t buffer[1024];
+  size_t len = request->contentLength();
+  size_t bytesRead = request->readBytes(buffer, len);
 
-    // Parse JSON
-    StaticJsonDocument<1024> doc;
-    DeserializationError error = deserializeJson(doc, requestBody);
-    if (error) {
-        Serial.print("deserializeJson() failed: ");
-        Serial.println(error.c_str());
-        request->send(400, "text/plain", "deserializeJson() failed [!!MAKE SURE THERE IS A JSON PROPERTY OF 'image' with a byte array image!!]: " + String(error.c_str()));
-        return;
-    }
+  // Parse the JSON from the buffer
+  StaticJsonDocument<1024> doc;
+  DeserializationError error = deserializeJson(doc, buffer, bytesRead);
+  if (error) {
+    Serial.print("deserializeJson() failed: ");
+    Serial.println(error.c_str());
+    request->send(400, "text/plain", "deserializeJson() failed: " + String(error.c_str()));
+    return;
+  }
 
-    // Get the byte array from JSON
-    const char* imageBytes = doc["image"];
-    if (imageBytes == nullptr) {
-        request->send(400, "text/plain", "No 'image' property found in the JSON");
-        return;
-    }
+  // Extract the Base64 encoded image from the JSON
+  const char* base64Image = doc["image"];
 
-    // Display the image
-    display.clearDisplay();
-    display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, (uint8_t *)imageBytes, 128, 64, SSD1306_WHITE);
-    display.display();
+  // Decode the Base64 string into a byte array
+  int imageSize = Base64.decodedLength(base64Image); // Calculate the size of the decoded data
+  uint8_t decodedImage[imageSize]; // Create a byte array to hold the decoded data
+  Base64.decode(decodedImage, base64Image, strlen(base64Image)); // Decode the Base64 string
 
-    request->send(200, "text/plain", "Image displayed successfully."); });
+  // Display the decoded image on the screen
+  display.clearDisplay();
+  display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, decodedImage, 128, 64, SSD1306_WHITE);
+  display.display();
+
+  // Send a response back to the client
+  request->send(200, "text/plain", "Image displayed successfully.");
+  });
 };
 
 void loop()
@@ -3488,19 +3488,20 @@ void loop()
     // Check if it's time to print the heartbeat status
     if (eq > interval)
     {
-      if (eq < 400000000){
-      Serial.println("Failed to receive heartbeat request");
-      Serial.println(currentMillis);
-      Serial.println(lastHeartbeatTime);
-      Serial.println(heartbeatInterval);
-      Serial.print((lastHeartbeatTime - currentMillis));
-      Serial.print(" : ");
-      Serial.println(interval);
-      Serial.println((currentMillis - lastHeartbeatTime) > interval);
-      // Reset lastHeartbeatTime to avoid immediate retry
-      lastHeartbeatTime = currentMillis;
-      dev_mode = false;
-      anim_idle();
+      if (eq < 400000000)
+      {
+        Serial.println("Failed to receive heartbeat request");
+        Serial.println(currentMillis);
+        Serial.println(lastHeartbeatTime);
+        Serial.println(heartbeatInterval);
+        Serial.print((lastHeartbeatTime - currentMillis));
+        Serial.print(" : ");
+        Serial.println(interval);
+        Serial.println((currentMillis - lastHeartbeatTime) > interval);
+        // Reset lastHeartbeatTime to avoid immediate retry
+        lastHeartbeatTime = currentMillis;
+        dev_mode = false;
+        anim_idle();
       }
     };
     // Other non-blocking tasks can be performed here
