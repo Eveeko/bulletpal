@@ -9,7 +9,7 @@
 #include <esp_random.h>
 #include <ArduinoJson.h>
 #include <Arduino.h>
-#include <Base64.h>
+#include <rBase64.h>
 
 // 'default_sad_2_5', 128x64px
 const unsigned char default_sad_2_5[] PROGMEM = {
@@ -2615,10 +2615,12 @@ unsigned long previousMillis = 0;
 const long interval = 1000; // Delay interval in milliseconds
 unsigned long lastHeartbeatTime = 0;
 unsigned long heartbeatInterval = 15000; // 10 seconds in milliseconds
+const char *base64_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
 AsyncWebServer server(80);
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 Preferences preferences;
+rBase64generic<1250> mybase64;
 
 // delcaring functions prior
 
@@ -2641,6 +2643,22 @@ void anim_sad_hungry();
 void anim_sad_tear();
 
 //
+
+// Helper function to find the index of a Base64 character
+int base64CharToValue(char c)
+{
+  if (c >= 'A' && c <= 'Z')
+    return c - 'A';
+  if (c >= 'a' && c <= 'z')
+    return c - 'a' + 26;
+  if (c >= '0' && c <= '9')
+    return c - '0' + 52;
+  if (c == '+')
+    return 62;
+  if (c == '/')
+    return 63;
+  return -1; // Padding character '=' or invalid
+}
 
 void WiFiEvent(WiFiEvent_t event)
 {
@@ -3107,12 +3125,96 @@ void anim_sad_hungry()
   delay(150);
 }
 
+String decodedData = "";
+String payload = "";
+void handleImageBody(AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total)
+{
+  if (!index)
+  {
+    size_t x = 0;
+    Serial.printf("BodyStart: %u B\n", total);
+  }
+  for (size_t i = 0; i < len; i++)
+  {
+    char tempwdf = ((char)data[i]);
+    payload.concat(tempwdf);
+  }
+  if (index + len == total)
+  {
+    Serial.printf("BodyEnd: %u B\n", total);
+    decodedData = "";
+    Serial.println("Receiving displayImage body...");
+
+    int colonIndex = 0;
+    bool foundColon = false;
+    for (int a = 0; a < total; a++)
+    {
+      char character = payload[a];
+      if (character == ':')
+      {
+        colonIndex = a;
+        foundColon = true;
+      };
+      if (foundColon == true)
+      {
+        if (character == '-')
+        {
+          decodedData.concat('+');
+        }
+        else if (character == '_')
+        {
+          decodedData.concat('/');
+        }
+        else if (character == '"')
+        {
+          // do nothing, we skip this character.
+        }
+        else if (character == '}')
+        {
+          // do nothing, we skip this character.
+        }
+        else if (character == ':')
+        {
+        }
+        else
+        {
+          decodedData.concat(character);
+        }
+      };
+    }
+    if (foundColon == true)
+    {
+      Serial.print("Decoded image: ");
+      Serial.println(decodedData); // Prints decoded data.
+
+      if (mybase64.decode(decodedData) == RBASE64_STATUS_OK)
+      {
+        Serial.println("\nConverted the String from Base64 : ");
+        unsigned char *imageOut = ((unsigned char *)mybase64.result());
+        display.clearDisplay();
+        display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, imageOut, 128, 64, SSD1306_WHITE);
+        display.display();
+        request->send(200, "text/plain", "Image displayed.");
+      }
+      else
+      {
+        request->send(400, "text/plain", "Error decoding base64 data.");
+      }
+    }
+    else
+    {
+      request->send(404, "text/plain", "Missing image property.");
+    };
+  }
+}
+
 bool connectToWiFi(const char *ssid, const char *password)
 {
   Serial.println("Connecting to WiFi...");
   // Set WiFi mode to station (client) mode
   WiFi.mode(WIFI_STA);
-  WiFi.setHostname("BulletPalV1.0");
+  WiFi.setHostname("BulletPal1");
+  WiFi.setAutoReconnect(true);
 
   // Attempt to connect to the provided network
   WiFi.begin(ssid, password);
@@ -3259,7 +3361,7 @@ void setup()
         request->send(200, "text/html", errorHtml);
       };
     } else {
-      request->send_P(400, "text/plain", PSTR("Bad Request"));
+      request->send(400, "text/plain", PSTR("Bad Request"));
     } });
 
   server.on("/heartbeat", HTTP_GET, [](AsyncWebServerRequest *request)
@@ -3282,9 +3384,11 @@ void setup()
     if(mode == "dev"){
       Serial.println("Set mode to DEV");
       dev_mode = true;
-      display.clearDisplay();
-      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, indicator_loading, 128, 64, SSD1306_WHITE);
-      display.display();
+      if(dev_mode == false){
+        display.clearDisplay();
+        display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, indicator_loading, 128, 64, SSD1306_WHITE);
+        display.display();
+      }
       request->send(200, "text/plain", "Mode set to DEV_MODE");
     }else{
       Serial.println("Set mode to DEFAULT");
@@ -3297,8 +3401,8 @@ void setup()
 
   server.on("/setemotion", HTTP_POST, [](AsyncWebServerRequest *request)
             {
-  if (request->hasParam("emotion", true)) {
-    const AsyncWebParameter *param = request->getParam("emotion", true);
+  if (request->hasParam("emotion")) {
+    const AsyncWebParameter *param = request->getParam("emotion");
     String emotion = param->value();
     Serial.print("Received emotion: ");
     Serial.println(emotion);
@@ -3348,8 +3452,8 @@ void setup()
 
   server.on("setrawemotion", HTTP_POST, [](AsyncWebServerRequest *request)
             {
-  if (request->hasParam("emotion", true)) {
-    const AsyncWebParameter *param = request->getParam("emotion", true);
+  if (request->hasParam("emotion")) {
+    const AsyncWebParameter *param = request->getParam("emotion");
     String emotion = param->value();
     Serial.print("Received emotion: ");
     Serial.println(emotion);
@@ -3422,40 +3526,12 @@ void setup()
     request->send(400, "text/plain", "Missing 'emotion' parameter");
   } });
 
-  server.on("/displayImage", HTTP_POST, [](AsyncWebServerRequest *request)
-            {
-  // Buffer to store the incoming request body
-  uint8_t buffer[1024];
-  size_t len = request->contentLength();
-  size_t bytesRead = request->readBytes(buffer, len);
-
-  // Parse the JSON from the buffer
-  StaticJsonDocument<1024> doc;
-  DeserializationError error = deserializeJson(doc, buffer, bytesRead);
-  if (error) {
-    Serial.print("deserializeJson() failed: ");
-    Serial.println(error.c_str());
-    request->send(400, "text/plain", "deserializeJson() failed: " + String(error.c_str()));
-    return;
-  }
-
-  // Extract the Base64 encoded image from the JSON
-  const char* base64Image = doc["image"];
-
-  // Decode the Base64 string into a byte array
-  int imageSize = Base64.decodedLength(base64Image); // Calculate the size of the decoded data
-  uint8_t decodedImage[imageSize]; // Create a byte array to hold the decoded data
-  Base64.decode(decodedImage, base64Image, strlen(base64Image)); // Decode the Base64 string
-
-  // Display the decoded image on the screen
-  display.clearDisplay();
-  display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, decodedImage, 128, 64, SSD1306_WHITE);
-  display.display();
-
-  // Send a response back to the client
-  request->send(200, "text/plain", "Image displayed successfully.");
-  });
-};
+  server.onRequestBody([](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total)
+                       {
+    if (request->url() == "/displayImage") {
+      handleImageBody(request, data, len, index, total);
+    }; });
+}
 
 void loop()
 {
@@ -3483,7 +3559,7 @@ void loop()
   else
   {
     unsigned long currentMillis = millis();
-    unsigned long interval = 10000;
+    unsigned long interval = 12000;
     unsigned long eq = (currentMillis - lastHeartbeatTime);
     // Check if it's time to print the heartbeat status
     if (eq > interval)
@@ -3491,13 +3567,6 @@ void loop()
       if (eq < 400000000)
       {
         Serial.println("Failed to receive heartbeat request");
-        Serial.println(currentMillis);
-        Serial.println(lastHeartbeatTime);
-        Serial.println(heartbeatInterval);
-        Serial.print((lastHeartbeatTime - currentMillis));
-        Serial.print(" : ");
-        Serial.println(interval);
-        Serial.println((currentMillis - lastHeartbeatTime) > interval);
         // Reset lastHeartbeatTime to avoid immediate retry
         lastHeartbeatTime = currentMillis;
         dev_mode = false;
