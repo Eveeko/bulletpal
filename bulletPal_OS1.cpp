@@ -3520,8 +3520,8 @@ void setup()
       display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_idle, 128, 64, SSD1306_WHITE);
       request->send(406, "text/plain", "Emotion requested does not exist. GET /listemotion for all valid emotions.");
     };
-    request->send(200, "text/plain", "Emotion updated successfully.");
     display.display();
+    request->send(200, "text/plain", "Emotion updated successfully.");
   } else {
     request->send(400, "text/plain", "Missing 'emotion' parameter");
   } });
