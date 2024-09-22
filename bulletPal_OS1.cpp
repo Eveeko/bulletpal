@@ -3453,6 +3453,16 @@ void setup()
   server.on("setrawemotion", HTTP_POST, [](AsyncWebServerRequest *request)
             {
   if (request->hasParam("emotion")) {
+    int x = ((display.width() - 128) / 2); // default X position top left of screen.
+    int y = ((display.height() - 64) / 2); // default Y position top left of screen.
+    if(request->hasParam("x")){
+      const AsyncWebParameter *paramX = request->getParam("x");
+      x += paramX->value();
+    };
+    if(request->hasParam("y")){
+      const AsyncWebParameter *paramY = request->getParam("y");
+      y += paramY->value();
+    };
     const AsyncWebParameter *param = request->getParam("emotion");
     String emotion = param->value();
     Serial.print("Received emotion: ");
@@ -3461,63 +3471,63 @@ void setup()
     // Process the received emotion here
     display.clearDisplay();
     if(emotion == "idle"){
-      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_idle, 128, 64, SSD1306_WHITE);
+      display.drawBitmap(x, y, default_idle, 128, 64, SSD1306_WHITE);
     } else if(emotion = "idle_blink"){
-      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_blink, 128, 64, SSD1306_WHITE);
+      display.drawBitmap(x, y, default_blink, 128, 64, SSD1306_WHITE);
     } else if(emotion = "sleep"){
-      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_blink, 128, 64, SSD1306_WHITE);
+      display.drawBitmap(x, y, default_blink, 128, 64, SSD1306_WHITE);
     } else if(emotion = "sleep_zzz_1"){
-      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_sleep_1, 128, 64, SSD1306_WHITE);
+      display.drawBitmap(x, y, default_sleep_1, 128, 64, SSD1306_WHITE);
     } else if(emotion = "sleep_zzz_2"){
-      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_sleep_2, 128, 64, SSD1306_WHITE);
+      display.drawBitmap(x, y, default_sleep_2, 128, 64, SSD1306_WHITE);
     } else if(emotion = "sleep_zzz_3"){
-      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_sleep_3, 128, 64, SSD1306_WHITE);
+      display.drawBitmap(x, y, default_sleep_3, 128, 64, SSD1306_WHITE);
     } else if(emotion = "dead"){
-      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_dead, 128, 64, SSD1306_WHITE);
+      display.drawBitmap(x, y, default_dead, 128, 64, SSD1306_WHITE);
     } else if(emotion = "dead_drool_1"){
-      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_dead_1, 128, 64, SSD1306_WHITE);
+      display.drawBitmap(x, y, default_dead_1, 128, 64, SSD1306_WHITE);
     } else if(emotion = "dead_drool_2"){
-      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_dead_2, 128, 64, SSD1306_WHITE);
+      display.drawBitmap(x, y, default_dead_2, 128, 64, SSD1306_WHITE);
     } else if(emotion = "dead_drool_3"){
-      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_dead_3, 128, 64, SSD1306_WHITE);
+      display.drawBitmap(x, y, default_dead_3, 128, 64, SSD1306_WHITE);
     } else if(emotion = "dead_drool_4"){
-      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_dead_4, 128, 64, SSD1306_WHITE);
+      display.drawBitmap(x, y, default_dead_4, 128, 64, SSD1306_WHITE);
     } else if(emotion = "dead_drool_5"){
-      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_dead_5, 128, 64, SSD1306_WHITE);
+      display.drawBitmap(x, y, default_dead_5, 128, 64, SSD1306_WHITE);
     } else if(emotion = "happy_1"){
-      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_happy_1, 128, 64, SSD1306_WHITE);
+      display.drawBitmap(x, y, default_happy_1, 128, 64, SSD1306_WHITE);
     } else if(emotion = "happy_1_blink_1"){
-      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_happy_1_blink_1, 128, 64, SSD1306_WHITE);
+      display.drawBitmap(x, y, default_happy_1_blink_1, 128, 64, SSD1306_WHITE);
     } else if(emotion = "happy_1_wink"){
-      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_happy_1_blink_2, 128, 64, SSD1306_WHITE);
+      display.drawBitmap(x, y, default_happy_1_blink_2, 128, 64, SSD1306_WHITE);
     } else if(emotion = "happy_2"){
-      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_happy_2, 128, 64, SSD1306_WHITE);
+      display.drawBitmap(x, y, default_happy_2, 128, 64, SSD1306_WHITE);
     } else if(emotion = "happy_2_blink"){
-      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_happy_2_blink_1, 128, 64, SSD1306_WHITE);
+      display.drawBitmap(x, y, default_happy_2_blink_1, 128, 64, SSD1306_WHITE);
     } else if(emotion = "angry"){
-      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_angry, 128, 64, SSD1306_WHITE);
+      display.drawBitmap(x, y, default_angry, 128, 64, SSD1306_WHITE);
     } else if(emotion = "angry_symbol"){
-      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_angry_symbol, 128, 64, SSD1306_WHITE);
+      display.drawBitmap(x, y, default_angry_symbol, 128, 64, SSD1306_WHITE);
     } else if(emotion = "angry_shake_1"){
-      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_angry_shake_1, 128, 64, SSD1306_WHITE);
+      display.drawBitmap(x, y, default_angry_shake_1, 128, 64, SSD1306_WHITE);
     } else if(emotion = "angry_shake_2"){
-      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_angry_shake_2, 128, 64, SSD1306_WHITE);
+      display.drawBitmap(x, y, default_angry_shake_2, 128, 64, SSD1306_WHITE);
     } else if(emotion = "angry_shake_3"){
-      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_angry_shake_3, 128, 64, SSD1306_WHITE);
+      display.drawBitmap(x, y, default_angry_shake_3, 128, 64, SSD1306_WHITE);
     } else if(emotion = "angry_shake_4"){
-      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_angry_shake_4, 128, 64, SSD1306_WHITE);
+      display.drawBitmap(x, y, default_angry_shake_4, 128, 64, SSD1306_WHITE);
     } else if(emotion = "angry_shake_5"){
-      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_angry_shake_5, 128, 64, SSD1306_WHITE);
+      display.drawBitmap(x, y, default_angry_shake_5, 128, 64, SSD1306_WHITE);
     } else if(emotion = "sad_tear_1"){
-      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_sad_1_1, 128, 64, SSD1306_WHITE);
+      display.drawBitmap(x, y, default_sad_1_1, 128, 64, SSD1306_WHITE);
     } else if(emotion = "sad_hungry"){
-      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_sad_1_hungry, 128, 64, SSD1306_WHITE);
+      display.drawBitmap(x, y, default_sad_1_hungry, 128, 64, SSD1306_WHITE);
     } else if(emotion = "idle_hungry"){
-      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_idle_hungry, 128, 64, SSD1306_WHITE);
+      display.drawBitmap(x, y, default_idle_hungry, 128, 64, SSD1306_WHITE);
     } else if(emotion = "sad_tear_hungry"){
-      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_sad_1_1_hungry, 128, 64, SSD1306_WHITE);
+      display.drawBitmap(x, y, default_sad_1_1_hungry, 128, 64, SSD1306_WHITE);
     } else {
-      display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_idle, 128, 64, SSD1306_WHITE);
+      display.drawBitmap(x, y, default_idle, 128, 64, SSD1306_WHITE);
       request->send(406, "text/plain", "Emotion requested does not exist. GET /listemotion for all valid emotions.");
     };
     display.display();
