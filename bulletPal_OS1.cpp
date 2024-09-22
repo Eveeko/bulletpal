@@ -2622,6 +2622,9 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 Preferences preferences;
 rBase64generic<1250> mybase64;
 
+int palX = (display.width() - 128) / 2;
+int palY = (display.height() - 64) / 2;
+
 // delcaring functions prior
 
 void anim_idle();
@@ -2886,241 +2889,241 @@ void playRandomAnimation(int totalDurationSeconds)
   Serial.println("Playing default animation after unique animations...");
 }
 
-void anim_idle()
+void anim_idle(int X, int Y)
 {
   display.clearDisplay();
-  display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_idle, 128, 64, SSD1306_WHITE);
+  display.drawBitmap(X, Y, default_idle, 128, 64, SSD1306_WHITE);
   display.display();
   Serial.println("[+] Emotion updated: idle");
 };
 
-void anim_idle_blink()
+void anim_idle_blink(int X, int Y)
 {
   display.clearDisplay();
-  display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_blink, 128, 64, SSD1306_WHITE);
+  display.drawBitmap(X, Y, default_blink, 128, 64, SSD1306_WHITE);
   display.display();
   Serial.println("[+] Emotion updated: idle_blink");
   delay(250);
   display.clearDisplay();
-  display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_idle, 128, 64, SSD1306_WHITE);
+  display.drawBitmap(X, Y, default_idle, 128, 64, SSD1306_WHITE);
   display.display();
   Serial.println("[+] Emotion updated: idle");
 };
 
-void anim_sleep()
+void anim_sleep(int X, int Y)
 {
   // Sleep emotion
   display.clearDisplay();
-  display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_blink, 128, 64, SSD1306_WHITE);
+  display.drawBitmap(X, Y, default_blink, 128, 64, SSD1306_WHITE);
   display.display();
 };
 
-void anim_sleep_zzz()
+void anim_sleep_zzz(int X, int Y)
 {
   // Sleep zzzz emotion
   display.clearDisplay();
-  display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_sleep_1, 128, 64, SSD1306_WHITE);
+  display.drawBitmap(X, Y, default_sleep_1, 128, 64, SSD1306_WHITE);
   display.display();
   delay(250);
   display.clearDisplay();
-  display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_sleep_2, 128, 64, SSD1306_WHITE);
+  display.drawBitmap(X, Y, default_sleep_2, 128, 64, SSD1306_WHITE);
   display.display();
   delay(250);
   display.clearDisplay();
-  display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_sleep_3, 128, 64, SSD1306_WHITE);
+  display.drawBitmap(X, Y, default_sleep_3, 128, 64, SSD1306_WHITE);
   display.display();
   delay(250);
   display.clearDisplay();
-  display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_blink, 128, 64, SSD1306_WHITE);
+  display.drawBitmap(X, Y, default_blink, 128, 64, SSD1306_WHITE);
   display.display();
 }
 
-void anim_dead()
+void anim_dead(int X, int Y)
 {
   // Dead emotion
   display.clearDisplay();
-  display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_dead, 128, 64, SSD1306_WHITE);
+  display.drawBitmap(X, Y, default_dead, 128, 64, SSD1306_WHITE);
   display.display();
 };
 
-void anim_dead_drool()
+void anim_dead_drool(int X, int Y)
 {
   // Dead drool emotion
   display.clearDisplay();
-  display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_dead_1, 128, 64, SSD1306_WHITE);
+  display.drawBitmap(X, Y, default_dead_1, 128, 64, SSD1306_WHITE);
   display.display();
   delay(150);
   display.clearDisplay();
-  display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_dead_2, 128, 64, SSD1306_WHITE);
+  display.drawBitmap(X, Y, default_dead_2, 128, 64, SSD1306_WHITE);
   display.display();
   delay(150);
   display.clearDisplay();
-  display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_dead_3, 128, 64, SSD1306_WHITE);
+  display.drawBitmap(X, Y, default_dead_3, 128, 64, SSD1306_WHITE);
   display.display();
   delay(150);
   display.clearDisplay();
-  display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_dead_4, 128, 64, SSD1306_WHITE);
+  display.drawBitmap(X, Y, default_dead_4, 128, 64, SSD1306_WHITE);
   display.display();
   delay(150);
   display.clearDisplay();
-  display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_dead_5, 128, 64, SSD1306_WHITE);
+  display.drawBitmap(X, Y, default_dead_5, 128, 64, SSD1306_WHITE);
   display.display();
   delay(150);
   display.clearDisplay();
-  display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_dead, 128, 64, SSD1306_WHITE);
+  display.drawBitmap(X, Y, default_dead, 128, 64, SSD1306_WHITE);
   display.display();
 }
 
-void anim_happy_1()
+void anim_happy_1(int X, int Y)
 {
   // Happy emotion
   display.clearDisplay();
-  display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_happy_1, 128, 64, SSD1306_WHITE);
+  display.drawBitmap(X, Y, default_happy_1, 128, 64, SSD1306_WHITE);
   display.display();
 };
 
-void anim_happy_1_blink()
+void anim_happy_1_blink(int X, int Y)
 {
   // Happy blink emotion
   display.clearDisplay();
-  display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_happy_1_blink_2, 128, 64, SSD1306_WHITE);
+  display.drawBitmap(X, Y, default_happy_1_blink_2, 128, 64, SSD1306_WHITE);
   display.display();
   delay(250);
   display.clearDisplay();
-  display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_happy_1, 128, 64, SSD1306_WHITE);
+  display.drawBitmap(X, Y, default_happy_1, 128, 64, SSD1306_WHITE);
   display.display();
 };
 
-void anim_happy_1_wink()
+void anim_happy_1_wink(int X, int Y)
 {
   // Happy wink emotion
   display.clearDisplay();
-  display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_happy_1_blink_1, 128, 64, SSD1306_WHITE);
+  display.drawBitmap(X, Y, default_happy_1_blink_1, 128, 64, SSD1306_WHITE);
   display.display();
   delay(250);
   display.clearDisplay();
-  display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_happy_1, 128, 64, SSD1306_WHITE);
+  display.drawBitmap(X, Y, default_happy_1, 128, 64, SSD1306_WHITE);
   display.display();
 };
 
-void anim_happy_2()
+void anim_happy_2(int X, int Y)
 {
   // Happy 2 emotion
   display.clearDisplay();
-  display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_happy_2, 128, 64, SSD1306_WHITE);
+  display.drawBitmap(X, Y, default_happy_2, 128, 64, SSD1306_WHITE);
   display.display();
 };
 
-void anim_happy_2_blink()
+void anim_happy_2_blink(int X, int Y)
 {
   // Happy 2 blink emotion
   display.clearDisplay();
-  display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_happy_2_blink_1, 128, 64, SSD1306_WHITE);
+  display.drawBitmap(X, Y, default_happy_2_blink_1, 128, 64, SSD1306_WHITE);
   display.display();
   delay(250);
   display.clearDisplay();
-  display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_happy_2, 128, 64, SSD1306_WHITE);
+  display.drawBitmap(X, Y, default_happy_2, 128, 64, SSD1306_WHITE);
   display.display();
 };
 
-void anim_angry()
+void anim_angry(int X, int Y)
 {
   // Angry emotion
   display.clearDisplay();
-  display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_angry, 128, 64, SSD1306_WHITE);
+  display.drawBitmap(X, Y, default_angry, 128, 64, SSD1306_WHITE);
   display.display();
 };
 
-void anim_angry_symbol()
+void anim_angry_symbol(int X, int Y)
 {
   // Angry symbol emotion
   display.clearDisplay();
-  display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_angry_symbol, 128, 64, SSD1306_WHITE);
+  display.drawBitmap(X, Y, default_angry_symbol, 128, 64, SSD1306_WHITE);
   display.display();
 };
 
-void anim_angry_shake()
+void anim_angry_shake(int X, int Y)
 {
   // Angry shake emotion
   display.clearDisplay();
-  display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_angry_shake_1, 128, 64, SSD1306_WHITE);
+  display.drawBitmap(X, Y, default_angry_shake_1, 128, 64, SSD1306_WHITE);
   display.display();
   delay(150);
   display.clearDisplay();
-  display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_angry_shake_2, 128, 64, SSD1306_WHITE);
+  display.drawBitmap(X, Y, default_angry_shake_2, 128, 64, SSD1306_WHITE);
   display.display();
   delay(150);
   display.clearDisplay();
-  display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_angry_shake_3, 128, 64, SSD1306_WHITE);
+  display.drawBitmap(X, Y, default_angry_shake_3, 128, 64, SSD1306_WHITE);
   display.display();
   delay(150);
   display.clearDisplay();
-  display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_angry_shake_4, 128, 64, SSD1306_WHITE);
+  display.drawBitmap(X, Y, default_angry_shake_4, 128, 64, SSD1306_WHITE);
   display.display();
   delay(150);
   display.clearDisplay();
-  display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_angry_shake_5, 128, 64, SSD1306_WHITE);
+  display.drawBitmap(X, Y, default_angry_shake_5, 128, 64, SSD1306_WHITE);
   display.display();
   delay(150);
   display.clearDisplay();
-  display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_angry, 128, 64, SSD1306_WHITE);
+  display.drawBitmap(X, Y, default_angry, 128, 64, SSD1306_WHITE);
   display.display();
 };
 
-void anim_sad()
+void anim_sad(int X, int Y)
 {
   // Sad emotion
   display.clearDisplay();
-  display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_sad_1, 128, 64, SSD1306_WHITE);
+  display.drawBitmap(X, Y, default_sad_1, 128, 64, SSD1306_WHITE);
   display.display();
 };
 
-void anim_sad_tear()
+void anim_sad_tear(int X, int Y)
 {
   // Sad tearing emotion
   display.clearDisplay();
-  display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_sad_1_1, 128, 64, SSD1306_WHITE);
+  display.drawBitmap(X, Y, default_sad_1_1, 128, 64, SSD1306_WHITE);
   display.display();
   delay(150);
   display.clearDisplay();
-  display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_sad_1_2, 128, 64, SSD1306_WHITE);
+  display.drawBitmap(X, Y, default_sad_1_2, 128, 64, SSD1306_WHITE);
   display.display();
   delay(150);
   display.clearDisplay();
-  display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_sad_1_3, 128, 64, SSD1306_WHITE);
+  display.drawBitmap(X, Y, default_sad_1_3, 128, 64, SSD1306_WHITE);
   display.display();
   delay(150);
   display.clearDisplay();
-  display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_sad_1_4, 128, 64, SSD1306_WHITE);
+  display.drawBitmap(X, Y, default_sad_1_4, 128, 64, SSD1306_WHITE);
   display.display();
   delay(150);
   display.clearDisplay();
-  display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_sad_1, 128, 64, SSD1306_WHITE);
+  display.drawBitmap(X, Y, default_sad_1, 128, 64, SSD1306_WHITE);
   display.display();
   delay(150);
 }
 
-void anim_sad_hungry()
+void anim_sad_hungry(int X, int Y)
 {
   // Sad hungry emotion
   display.clearDisplay();
-  display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_sad_2_1, 128, 64, SSD1306_WHITE);
+  display.drawBitmap(X, Y, default_sad_2_1, 128, 64, SSD1306_WHITE);
   display.display();
   delay(150);
   display.clearDisplay();
-  display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_sad_2_2, 128, 64, SSD1306_WHITE);
+  display.drawBitmap(X, Y, default_sad_2_2, 128, 64, SSD1306_WHITE);
   display.display();
   delay(150);
   display.clearDisplay();
-  display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_sad_2_3, 128, 64, SSD1306_WHITE);
+  display.drawBitmap(X, Y, default_sad_2_3, 128, 64, SSD1306_WHITE);
   display.display();
   delay(150);
   display.clearDisplay();
-  display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_sad_2_4, 128, 64, SSD1306_WHITE);
+  display.drawBitmap(X, Y, default_sad_2_4, 128, 64, SSD1306_WHITE);
   display.display();
   delay(150);
   display.clearDisplay();
-  display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_sad_2_5, 128, 64, SSD1306_WHITE);
+  display.drawBitmap(X, Y, default_sad_2_5, 128, 64, SSD1306_WHITE);
   display.display();
   delay(150);
 }
@@ -3402,6 +3405,16 @@ void setup()
   server.on("/setemotion", HTTP_POST, [](AsyncWebServerRequest *request)
             {
   if (request->hasParam("emotion")) {
+    int x = ((display.width() - 128) / 2); // default X position top left of screen.
+    int y = ((display.height() - 64) / 2); // default Y position top left of screen.
+    if(request->hasParam("x")){
+      const AsyncWebParameter *paramX = request->getParam("x");
+      x += paramX->value();
+    };
+    if(request->hasParam("y")){
+      const AsyncWebParameter *paramY = request->getParam("y");
+      y += paramY->value();
+    };
     const AsyncWebParameter *param = request->getParam("emotion");
     String emotion = param->value();
     Serial.print("Received emotion: ");
@@ -3409,39 +3422,39 @@ void setup()
     emotion.trim();
     // Process the received emotion here
     if(emotion == "idle"){
-      anim_idle();
+      anim_idle(x, y);
     } else if (emotion == "idle_blink"){
-      anim_idle_blink();
+      anim_idle_blink(x, y);
     } else if (emotion == "sleep"){
-      anim_sleep();
+      anim_sleep(x, y);
     } else if (emotion == "sleep_zzz"){
-      anim_sleep_zzz();
+      anim_sleep_zzz(x, y);
     } else if (emotion == "dead"){
-      anim_dead();
+      anim_dead(x, y);
     } else if (emotion == "dead_drool"){
-      anim_dead_drool();
+      anim_dead_drool(x, y);
     } else if (emotion == "happy_1"){
-      anim_happy_1();
+      anim_happy_1(x, y);
     } else if (emotion == "happy_1_blink"){
-      anim_happy_1_blink();
+      anim_happy_1_blink(x, y);
     } else if (emotion == "happy_1_wink"){
-      anim_happy_1_wink();
+      anim_happy_1_wink(x, y);
     } else if (emotion == "happy_2"){
-      anim_happy_2();
+      anim_happy_2(x, y);
     } else if (emotion == "happy_2_blink"){
-      anim_happy_2_blink();
+      anim_happy_2_blink(x, y);
     } else if (emotion == "angry"){
-      anim_angry();
+      anim_angry(x, y);
     } else if (emotion == "angry_symbol"){
-      anim_angry_symbol();
+      anim_angry_symbol(x, y);
     } else if (emotion == "angry_shake"){
-      anim_angry_shake();
+      anim_angry_shake(x, y);
     } else if (emotion == "sad"){
-      anim_sad();
+      anim_sad(x, y);
     } else if (emotion == "sad_tear"){
-      anim_sad_tear();
+      anim_sad_tear(x, y);
     } else if (emotion == "sad_hungry"){
-      anim_sad_hungry();
+      anim_sad_hungry(x, y);
     } else{
       request->send(406, "text/plain", "Emotion requested does not exist. GET /listemotion for all valid emotions.");
     };
