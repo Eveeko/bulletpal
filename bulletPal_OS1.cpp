@@ -2615,7 +2615,9 @@ unsigned long previousMillis = 0;
 const long interval = 1000; // Delay interval in milliseconds
 unsigned long lastHeartbeatTime = 0;
 unsigned long heartbeatInterval = 15000; // 10 seconds in milliseconds
-const char *base64_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+const char *base64_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"; // list of cahracters in base64 encoding.  .,,..
+bool isPlayingFaceAnim = false; // whether or not a face anim is currently playing.
+int faceAnimKey = 0; // random key representing the current face playing animation. used for cancelling the correct one.
 
 AsyncWebServer server(80);
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
@@ -2627,23 +2629,23 @@ int palY = (display.height() - 64) / 2;
 
 // delcaring functions prior
 
-void anim_idle();
-void anim_sleep();
-void anim_dead();
-void anim_happy_1();
-void anim_happy_2();
-void anim_angry();
-void anim_sad();
-void anim_idle_blink();
-void anim_sleep_zzz();
-void anim_dead_drool();
-void anim_happy_1_wink();
-void anim_happy_1_blink();
-void anim_happy_2_blink();
-void anim_angry_shake();
-void anim_angry_symbol();
-void anim_sad_hungry();
-void anim_sad_tear();
+void anim_idle(int x, int y);
+void anim_sleep(int x, int y);
+void anim_dead(int x, int y);
+void anim_happy_1(int x, int y);
+void anim_happy_2(int x, int y);
+void anim_angry(int x, int y);
+void anim_sad(int x, int y);
+void anim_idle_blink(int x, int y);
+void anim_sleep_zzz(int x, int y);
+void anim_dead_drool(int x, int y);
+void anim_happy_1_wink(int x, int y);
+void anim_happy_1_blink(int x, int y);
+void anim_happy_2_blink(int x, int y);
+void anim_angry_shake(int x, int y);
+void anim_angry_symbol(int x, int y);
+void anim_sad_hungry(int x, int y);
+void anim_sad_tear(int x, int y);
 
 //
 
@@ -2776,31 +2778,31 @@ void playRandomAnimation(int totalDurationSeconds)
   {
   case 0:
     // Idle emotion
-    anim_idle();
+    anim_idle(palX, palY);
     break;
   case 1:
     // Sleep emotion
-    anim_sleep();
+    anim_sleep(palX, palY);
     break;
   case 2:
     // Dead emotion
-    anim_dead();
+    anim_dead(palX, palY);
     break;
   case 3:
     // Happy-1 emotion
-    anim_happy_1();
+    anim_happy_1(palX, palY);
     break;
   case 4:
     // Happy-2 emotion
-    anim_happy_2();
+    anim_happy_2(palX, palY);
     break;
   case 5:
     // Angry emotion
-    anim_angry();
+    anim_angry(palX, palY);
     break;
   case 6:
     // Sad emotion
-    anim_sad();
+    anim_sad(palX, palY);
     break;
   };
 
@@ -2815,51 +2817,51 @@ void playRandomAnimation(int totalDurationSeconds)
     {
     case 0:
       // Idle unique emotion
-      anim_idle_blink();
+      anim_idle_blink(palX, palY);
       break;
     case 1:
       // Sleep unique emotion
-      anim_sleep_zzz();
+      anim_sleep_zzz(palX, palY);
       break;
     case 2:
       // Dead unique emotion
-      anim_dead_drool();
+      anim_dead_drool(palX, palY);
       break;
     case 3:
       // Happy-1 unique emotion
       if (RAV == true)
       {
-        anim_happy_1_wink();
+        anim_happy_1_wink(palX, palY);
       }
       else
       {
-        anim_happy_1_blink();
+        anim_happy_1_blink(palX, palY);
       };
       break;
     case 4:
       // Happy-2 unique emotion
-      anim_happy_2_blink();
+      anim_happy_2_blink(palX, palY);
       break;
     case 5:
       // Angry unique emotion
       if (RAV == true)
       {
-        anim_angry_shake();
+        anim_angry_shake(palX, palY);
       }
       else
       {
-        anim_angry_symbol();
+        anim_angry_symbol(palX, palY);
       };
       break;
     case 6:
       // Sad unique emotion
       if (RAV == true)
       {
-        anim_sad_hungry();
+        anim_sad_hungry(palX, palY);
       }
       else
       {
-        anim_sad_tear();
+        anim_sad_tear(palX, palY);
       };
       break;
     };
@@ -2925,8 +2927,7 @@ void anim_sleep_zzz(int X, int Y)
   display.drawBitmap(X, Y, default_sleep_1, 128, 64, SSD1306_WHITE);
   display.display();
   delay(250);
-  display.clearDisplay();
-  display.drawBitmap(X, Y, default_sleep_2, 128, 64, SSD1306_WHITE);
+  display.clearDisplay();  display.drawBitmap(X, Y, default_sleep_2, 128, 64, SSD1306_WHITE);
   display.display();
   delay(250);
   display.clearDisplay();
@@ -3044,27 +3045,39 @@ void anim_angry_symbol(int X, int Y)
 
 void anim_angry_shake(int X, int Y)
 {
+  int randGen = randomInRange(1, 1000);
+  faceAnimKey = randGen;
   // Angry shake emotion
   display.clearDisplay();
   display.drawBitmap(X, Y, default_angry_shake_1, 128, 64, SSD1306_WHITE);
   display.display();
+  if(faceAnimKey != randGen) return;
   delay(150);
+  if(faceAnimKey != randGen) return;
   display.clearDisplay();
   display.drawBitmap(X, Y, default_angry_shake_2, 128, 64, SSD1306_WHITE);
   display.display();
+  if(faceAnimKey != randGen) return;
   delay(150);
+  if(faceAnimKey != randGen) return;
   display.clearDisplay();
   display.drawBitmap(X, Y, default_angry_shake_3, 128, 64, SSD1306_WHITE);
   display.display();
+  if(faceAnimKey != randGen) return;
   delay(150);
+  if(faceAnimKey != randGen) return;
   display.clearDisplay();
   display.drawBitmap(X, Y, default_angry_shake_4, 128, 64, SSD1306_WHITE);
   display.display();
+  if(faceAnimKey != randGen) return;
   delay(150);
+  if(faceAnimKey != randGen) return;
   display.clearDisplay();
   display.drawBitmap(X, Y, default_angry_shake_5, 128, 64, SSD1306_WHITE);
   display.display();
+  if(faceAnimKey != randGen) return;
   delay(150);
+  if(faceAnimKey != randGen) return;
   display.clearDisplay();
   display.drawBitmap(X, Y, default_angry, 128, 64, SSD1306_WHITE);
   display.display();
@@ -3409,11 +3422,11 @@ void setup()
     int y = ((display.height() - 64) / 2); // default Y position top left of screen.
     if(request->hasParam("x")){
       const AsyncWebParameter *paramX = request->getParam("x");
-      x += paramX->value();
+      x += atoi(paramX->value().c_str());
     };
     if(request->hasParam("y")){
       const AsyncWebParameter *paramY = request->getParam("y");
-      y += paramY->value();
+      y += atoi(paramY->value().c_str());
     };
     const AsyncWebParameter *param = request->getParam("emotion");
     String emotion = param->value();
@@ -3458,7 +3471,9 @@ void setup()
     } else{
       request->send(406, "text/plain", "Emotion requested does not exist. GET /listemotion for all valid emotions.");
     };
-    request->send(200, "text/plain", "Emotion set successfully");
+    AsyncWebServerResponse *response = request->beginResponse(200, "text/plain", "Emotion set successfully"); //Sends 404 File Not Found
+    request->addInterestingHeader("Connection: close");
+    request->send(response);
   } else {
     request->send(400, "text/plain", "Missing 'emotion' parameter");
   } });
@@ -3470,11 +3485,11 @@ void setup()
     int y = ((display.height() - 64) / 2); // default Y position top left of screen.
     if(request->hasParam("x")){
       const AsyncWebParameter *paramX = request->getParam("x");
-      x += paramX->value();
+      x += atoi(paramX->value().c_str());
     };
     if(request->hasParam("y")){
       const AsyncWebParameter *paramY = request->getParam("y");
-      y += paramY->value();
+      y += atoi(paramY->value().c_str());
     };
     const AsyncWebParameter *param = request->getParam("emotion");
     String emotion = param->value();
@@ -3593,7 +3608,9 @@ void loop()
         // Reset lastHeartbeatTime to avoid immediate retry
         lastHeartbeatTime = currentMillis;
         dev_mode = false;
-        anim_idle();
+        palX = 0;
+        palY = 0;
+        anim_idle(palX, palY);
       }
     };
     // Other non-blocking tasks can be performed here
