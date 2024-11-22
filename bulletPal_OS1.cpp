@@ -2617,7 +2617,10 @@ unsigned long lastHeartbeatTime = 0;
 unsigned long heartbeatInterval = 15000;                                                       // 10 seconds in milliseconds
 const char *base64_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"; // list of cahracters in base64 encoding.  .,,..
 bool isPlayingFaceAnim = false;                                                                // whether or not a face anim is currently playing.
-int faceAnimKey = 0;                                                                           // random key representing the current face playing animation. used for cancelling the correct one.
+int faceAnimKey = 0;
+bool isWaitingForPairing = false;
+int wfpMillis = 0;         // The time the waiting for pairing started. used to time it out after X minutes and just run the default animation loop.
+int wfpendMillis = 180000; // The amount of time wfp will wait for a pair request before exiting out and starting the main loop.                        // random key representing the current face playing animation. used for cancelling the correct one.
 
 AsyncWebServer server(80);
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
@@ -2678,10 +2681,11 @@ void WiFiEvent(WiFiEvent_t event)
     Serial.println("Client connected");
     if (loop_state == false)
     {
+      isWaitingForPairing = false;
       // Not main loop, bootstrapping wifi connection.
       display.clearDisplay();
-      int16_t x = 4; // Calculate x position
-      int16_t y = (SCREEN_HEIGHT - 8) / 2;     // Calculate y position (8 is the height of the font)
+      int16_t x = 4;                       // Calculate x position
+      int16_t y = (SCREEN_HEIGHT - 8) / 2; // Calculate y position (8 is the height of the font)
       display.setCursor(x, y);
       display.setTextColor(SSD1306_WHITE);
       display.setTextSize(2);
@@ -2694,6 +2698,8 @@ void WiFiEvent(WiFiEvent_t event)
     // Redraw the connecto to wifi with phone indicator if the client disconnects from the network.
     if (loop_state == false)
     {
+      isWaitingForPairing = true;
+      wfpMillis = millis();
       display.clearDisplay();
       display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, indicator_wifi, 128, 64, SSD1306_WHITE);
       display.display();
@@ -3310,6 +3316,8 @@ void setup()
     display.display();
     Serial.println("\n[*] Displayed indicator_WiFi");
     delay(1000);
+    isWaitingForPairing = true;
+    wfpMillis = millis();
   }
   else
   {
@@ -3374,8 +3382,7 @@ void setup()
       html += "media (min-width: 920px) { .logo { position: absolute; top: 6%; width: 15%; height: auto; left: 44%; display: block; margin-left: auto; margin-right: auto; } .div1 { position: relative; top: -12vh; left: 10%; } } .line-filter { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: repeating-linear-gradient(transparent, transparent 2px, rgba(11, 9, 0, 0.3) 3px, rgba(11, 9, 0, 0.3) 4px); pointer-events: none } .scanlines { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-image: linear-gradient(to bottom, rgba(255, 204, 0, 0.1) 1px, transparent 2px); z-index: 1; pointer-events: none; animation: scan 27s linear infinite; } ";
       html += "keyframes scan { 0% { background-position: 0 -100vh; } 100% { background-position: 0 100vh; } } .loginH1 { color: #ffcc00; } .loginH4 { color: #ffcc00; } .div1 { position: relative; top: 3vw; left: 10%; } .div2 { position: relative; top: 10%; left: -12%; } .popupdiv { background-color: #ffcc00; color: #362c00; font-family: monospace; font-size: 10px; width: 100%; height: 75px; position: absolute; bottom: 0%; left: 0%; } </style> </head> <body> <div> <div class=\"scanlines\"></div> <img class=\"logo\" src=\"data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4NCjwhLS0gR2VuZXJhdG9yOiBBZG9iZSBJbGx1c3RyYXRvciAyOC4wLjAsIFNWRyBFeHBvcnQgUGx1Zy1JbiAuIFNWRyBWZXJzaW9uOiA2LjAwIEJ1aWxkIDApICAtLT4NCjxzdmcgdmVyc2lvbj0iMS4xIiBpZD0iTGF5ZXJfMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayIgeD0iMHB4IiB5PSIwcHgiDQoJIHZpZXdCb3g9IjAgMCAzNCA0NyIgc3R5bGU9ImVuYWJsZS1iYWNrZ3JvdW5kOm5ldyAwIDAgMzQgNDc7IiB4bWw6c3BhY2U9InByZXNlcnZlIj4NCjxzdHlsZSB0eXBlPSJ0ZXh0L2NzcyI+DQoJLnN0MHtmaWxsOiNGRkNDMDA7fQ0KPC9zdHlsZT4NCjxwYXRoIGNsYXNzPSJzdDAiIGQ9Ik0xMywyYzIuNiwwLDUuMywwLDgsMGMwLDAuNywwLDEuMywwLDJjMC43LDAsMS4zLDAsMiwwYzAsMC43LDAsMS4zLDAsMmMwLjcsMCwxLjMsMCwyLDBjMCwwLjcsMCwxLjMsMCwyDQoJYzAuNywwLDEuMywwLDIsMGMwLDEsMCwyLDAsM2MwLjcsMCwxLjMsMCwyLDBjMCwyLDAsNCwwLDZjLTIsMC00LDAtNiwwYzAtMC43LDAtMS4zLDAtMmMwLjcsMCwxLjMsMCwyLDBjMC0xLjMsMC0yLjYsMC00DQoJYy0wLjcsMC0xLjMsMC0yLDBjMC0xLDAtMiwwLTNjLTAuNywwLTEuMywwLTIsMGMwLTAuNywwLTEuMywwLTJjLTEuMywwLTIuNiwwLTQsMGMwLDEuMywwLDIuNiwwLDRjMS4zLDAuMywyLjYtMC4xLDMuOSwwLjINCgljMCwxLjMsMC4xLDMuNCwwLjEsNC44Yy0wLjcsMC0xLjMsMC0yLDBjMCwwLjcsMCwxLjMsMCwyYy00LjYsMC05LjIsMC0xNCwwYzAtMiwwLTQsMC02YzAuNywwLDEuMywwLDIsMGMwLTEsMC0yLDAtMw0KCWMwLjcsMCwxLjMsMCwyLDBjMC0wLjcsMC0xLjMsMC0yYzAuNywwLDEuMywwLDIsMGMwLTAuNywwLTEuMywwLTJjMC43LDAsMS4zLDAsMiwwQzEzLDMuMywxMywyLjcsMTMsMnoiLz4NCjxwYXRoIGNsYXNzPSJzdDAiIGQ9Ik01LDE5YzcuOSwwLDE1LjgsMCwyNCwwYzAsNS42LDAsMTEuMiwwLDE3Yy03LjksMC0xNS44LDAtMjQsMEM1LDMwLjQsNSwyNC44LDUsMTl6IE03LDI0YzAsMy4zLDAsNi42LDAsMTANCgljNi42LDAsMTMuMiwwLDIwLDBjMC0zLjMsMC02LjYsMC0xMEMyMC40LDI0LDEzLjgsMjQsNywyNHoiLz4NCjxwYXRoIGNsYXNzPSJzdDAiIGQ9Ik01LDM4YzcuOSwwLDE1LjgsMCwyNCwwYzAsMS4zLDAsMi42LDAsNGMtMC43LDAtMS4zLDAtMiwwYzAsMC43LDAsMS4zLDAsMmMtMC43LDAtMS4zLDAtMiwwYzAtMC43LDAtMS4zLDAtMg0KCWMtMC43LDAtMS4zLDAtMiwwYzAsMC43LDAsMS4zLDAsMmMtMC43LDAtMS4zLDAtMiwwYzAtMC43LDAtMS4zLDAtMmMtMi42LDAtNS4zLDAtOCwwYzAsMC43LDAsMS4zLDAsMmMtMC43LDAtMS4zLDAtMiwwDQoJYzAtMC43LDAtMS4zLDAtMmMtMC43LDAtMS4zLDAtMiwwYzAsMC43LDAsMS4zLDAsMmMtMC43LDAtMS4zLDAtMiwwYzAtMC43LDAtMS4zLDAtMmMtMC43LDAtMS4zLDAtMiwwQzUsNDAuNyw1LDM5LjQsNSwzOHoiLz4NCjxwYXRoIGNsYXNzPSJzdDAiIGQ9Ik0yMCwyOGMxLjMsMCwyLjYsMCw0LDBjMCwxLjMsMCwyLjYsMCw0Yy0xLjMsMC0yLjYsMC00LDBDMjAsMzAuNywyMCwyOS40LDIwLDI4eiIvPg0KPHBhdGggY2xhc3M9InN0MCIgZD0iTTEwLDI4YzEuMywwLDIuNiwwLDQsMGMwLDEuMywwLDIuNiwwLDRjLTEuMywwLTIuNiwwLTQsMEMxMCwzMC43LDEwLDI5LjQsMTAsMjh6Ii8+DQo8cGF0aCBjbGFzcz0ic3QwIiBkPSJNMjMsNDRjMC43LDAsMS4zLDAsMiwwYzAsMC43LDAsMS4zLDAsMmMtMC43LDAtMS4zLDAtMiwwQzIzLDQ1LjMsMjMsNDQuNywyMyw0NHoiLz4NCjxwYXRoIGNsYXNzPSJzdDAiIGQ9Ik05LDQ0YzAuNywwLDEuMywwLDIsMGMwLDAuNywwLDEuMywwLDJjLTAuNywwLTEuMywwLTIsMEM5LDQ1LjMsOSw0NC43LDksNDR6Ii8+DQo8cGF0aCBjbGFzcz0ic3QwIiBkPSJNMTUsMzBjNCwxLDQsMSw0LDFMMTUsMzB6Ii8+DQo8cGF0aCBjbGFzcz0ic3QwIiBkPSJNMTUsMzAuNWMxLjMsMCwyLjYsMCw0LDBjMCwxLjMsMCwwLjEsMCwxLjVjLTEuMywwLTIuNiwwLTQsMEMxNSwzMC43LDE1LDMxLjksMTUsMzAuNXoiLz4NCjwvc3ZnPg0K\"> <!-- Define the SVG filter within the HTML --> <div class=\"div1\"> <h1 class=\"loginH1\">WiFi Login</h1> <div class=\"div2\"> <h4 class=\"loginH4\">SSID:</h4> <input class=\"input1\" type=\"text\" id=\"ssid\" name=\"ssid\" size=\"17\" autocapitalize=\"none\" /> <h4 class=\"loginH4\">Password:</h4> <input class=\"input2\" type=\"text\" id=\"password\" name=\"password\" size=\"13\" autocapitalize=\"none\" /> <button type=\"submit\" class=\"submitBtn submitBtnOverride\" id=\"submitBtn\">SUBMIT</button> </div> </div> <div class=\"popupdiv\" id=\"popupdiv\"> <h1 class=\"popup1\" style=\" margin-left: 15px; margin-right: 15px; \">If the Pal's screen displays a face the connection was successfull, otherwise the Pal will restart and you will need to reconnect to the Pal's WiFi and start over.</h1> </div> <div class=\"line-filter\"></div> </div> <script> var subBtn = document.getElementById('submitBtn'); var clicked = false; subBtn.addEventListener('click', function (event) { if (!clicked) { clicked = true; subBtn.classList.remove(\"submitBtnOverride\"); const ssid = document.getElementById('ssid').value; const password = document.getElementById('password').value; const url = `/?ssid=${encodeURIComponent(ssid)}&password=${encodeURIComponent(password)}`; subBtn.innerHTML = \"CHECK PAL!\"; subBtn.style.backgroundColor = \"#362c00\"; subBtn.style.color = \"#ffcc00\"; fetch(url, { method: \"POST\" }) .then(response => response.json()) .then(data => console.log(data)) .catch(error => console.error('Error:', error)); } }); </script> </body>";
       request->send(200, "text/html", html);
-    };
-  });
+    }; });
 
   // Handle POST request to the root route
   server.on("/", HTTP_POST, [](AsyncWebServerRequest *request)
@@ -3615,6 +3622,17 @@ void loop()
     }
     else
     {
+      int cm = millis();
+      if ((cm - wfpMillis) >= wfpendMillis)
+      {
+        isWaitingForPairing = false;
+        Serial.println("[X] Pairing timeout has been exceeded. Starting main loop.");
+        loop_state = true;
+        display.clearDisplay();
+        display.drawBitmap((display.width() - 128) / 2, (display.height() - 64) / 2, default_idle, 128, 64, SSD1306_WHITE);
+        display.display();
+        delay(7000);
+      }
     };
   }
   else
