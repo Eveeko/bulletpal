@@ -3253,24 +3253,36 @@ bool connectToWiFi(const char *ssid, const char *password)
 
   // Attempt to connect to the provided network
   WiFi.begin(ssid, password);
+  const int MAX_ATTEMPTS = 30;
+  const unsigned long CHECK_INTERVAL = 1000; // Check every 500ms
+  unsigned long lastCheckTime = millis();
   int attempts = 0;
 
-  // Wait for the connection
-  while (WiFi.status() != WL_CONNECTED && attempts < 30)
+  // Wait for the connection (non-blocking)
+  while (WiFi.status() != WL_CONNECTED && attempts < MAX_ATTEMPTS)
   {
-    delay(1000);
-    Serial.print(".");
-    attempts++;
+    unsigned long currentMillis = millis();
+    if (currentMillis - lastCheckTime >= CHECK_INTERVAL)
+    {
+      lastCheckTime = currentMillis; // Update the last check time
+      Serial.print(".");            // Print progress
+      attempts++;
+    }
+
+    // Perform other non-blocking tasks here if needed
+    // For example: yield(); or handle other processes
   }
 
   if (WiFi.status() == WL_CONNECTED)
   {
-    Serial.println("\nWiFi connected");
+    Serial.println("[*] WiFi connected");
     return true;
   }
   else
   {
-    Serial.println("\nConnection failed");
+    Serial.println("[X] Connection failed");
+    Serial.print("WiFi status: ");
+    Serial.println(WiFi.status()); // Print additional status information
     return false;
   }
 }
@@ -3330,7 +3342,7 @@ void setup()
     if (connectToWiFi(ssid_ch, pass_ch))
     {
       // If it connects successfully we can continue.
-      Serial.println("SSID found and connected, starting main loop.");
+      Serial.println("[*] SSID found and connected, starting main loop.");
       server.begin();
       preferences.end();
       loop_state = true;
@@ -3655,6 +3667,6 @@ void loop()
       }
     };
     // Other non-blocking tasks can be performed here
-    //  Keep cycling as dev mode is fully request based. no autonomy performed.
+    // Keep cycling as dev mode is fully request based. no autonomy performed.
   }
 }
